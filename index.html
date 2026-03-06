@@ -531,19 +531,9 @@
   </div>
   </div><!-- /controlSection -->
 
-  <!-- Firebase Config -->
+  <!-- Login Panel -->
   <div id="configPanel" class="config-panel">
-    <div class="config-title">⚙️ ตั้งค่า Firebase</div>
-    <div class="input-row">
-      <div class="input-group">
-        <label>API Key</label>
-        <input type="text" id="cfgApiKey" placeholder="AIzaSy..." />
-      </div>
-      <div class="input-group">
-        <label>Database URL</label>
-        <input type="text" id="cfgDbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com" />
-      </div>
-    </div>
+    <div class="config-title">🔐 เข้าสู่ระบบ</div>
     <div class="input-row">
       <div class="input-group">
         <label>Email</label>
@@ -551,10 +541,10 @@
       </div>
       <div class="input-group">
         <label>Password</label>
-        <input type="password" id="cfgPass" placeholder="รหัสผ่าน" />
+        <input type="password" id="cfgPass" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')connectFirebase()" />
       </div>
     </div>
-    <button class="btn-save" onclick="connectFirebase()">🔗 เชื่อมต่อ Firebase</button>
+    <button class="btn-save" onclick="connectFirebase()">🔗 เข้าสู่ระบบ</button>
   </div><!-- /configPanel -->
 
   <!-- Log -->
@@ -569,7 +559,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ─── Config ───────────────────────────────────────────────
+  // ─── ✏️ แก้ค่าตรงนี้เพียงครั้งเดียว ─────────────────────
+  const FB_API_KEY = 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'; // ← ใส่ API Key ของคุณ
+  const FB_DB_URL  = 'https://your-project-default-rtdb.firebaseio.com'; // ← ใส่ DB URL
+  // ─────────────────────────────────────────────────────────
+
   const RELAY_ICONS = ['💡','❄️','🔌','🔧'];
   const RELAY_LABELS = ['Relay 1','Relay 2','Relay 3','Relay 4'];
 
@@ -578,13 +572,11 @@
   let relayLabels = [...RELAY_LABELS];
   let isConnected = false;
 
-  // ─── Load saved config (localStorage = ค้างข้ามหน้า/ปิดเบราว์เซอร์) ──
+  // ─── Load saved email (localStorage) ──────────────────────
   function loadConfig() {
     try {
       const saved = JSON.parse(localStorage.getItem('fbConfig') || '{}');
-      if (saved.apiKey) document.getElementById('cfgApiKey').value = saved.apiKey;
-      if (saved.dbUrl)  document.getElementById('cfgDbUrl').value  = saved.dbUrl;
-      if (saved.email)  document.getElementById('cfgEmail').value  = saved.email;
+      if (saved.email) document.getElementById('cfgEmail').value = saved.email;
       return saved;
     } catch { return {}; }
   }
@@ -679,32 +671,27 @@
 
   // ─── Connect Firebase ────────────────────────────────────
   function connectFirebase() {
-    const apiKey = document.getElementById('cfgApiKey').value.trim();
-    const dbUrl = document.getElementById('cfgDbUrl').value.trim();
     const email = document.getElementById('cfgEmail').value.trim();
-    const pass = document.getElementById('cfgPass').value;
+    const pass  = document.getElementById('cfgPass').value;
 
-    if (!apiKey || !dbUrl || !email || !pass) {
-      showToast('❌ กรุณากรอกข้อมูลให้ครบ', 'error');
+    if (!email || !pass) {
+      showToast('❌ กรุณากรอก Email และ Password', 'error');
       return;
     }
 
-    // Save config to localStorage (ค้างแม้ปิดเบราว์เซอร์)
-    localStorage.setItem('fbConfig', JSON.stringify({ apiKey, dbUrl, email }));
+    // บันทึก email ไว้เติมอัตโนมัติครั้งหน้า
+    localStorage.setItem('fbConfig', JSON.stringify({ email }));
 
-    addLog('กำลังเชื่อมต่อ Firebase...', 'info');
+    addLog('กำลัง Login...', 'info');
 
-    // Init Firebase (ถ้ายังไม่ได้ init)
     try {
       const firebaseConfig = {
-        apiKey,
-        databaseURL: dbUrl,
-        authDomain: new URL(dbUrl).hostname.replace('-default-rtdb', '') + '.firebaseapp.com',
-        projectId: new URL(dbUrl).hostname.replace('-default-rtdb.firebaseio.com', '')
-                                           .replace('.firebaseio.com', '')
+        apiKey: FB_API_KEY,
+        databaseURL: FB_DB_URL,
+        authDomain: new URL(FB_DB_URL).hostname.replace('-default-rtdb', '').replace(/\.firebasedatabase\.app$/, '') + '.firebaseapp.com',
+        projectId: new URL(FB_DB_URL).hostname.replace(/-default-rtdb.*/, '')
       };
 
-      // ลบ app เก่าถ้ามี
       if (firebase.apps.length > 0) {
         firebase.app().delete().then(() => initApp(firebaseConfig, email, pass));
       } else {
@@ -712,7 +699,7 @@
       }
     } catch (e) {
       addLog('Config Error: ' + e.message, 'err');
-      showToast('❌ Database URL ไม่ถูกต้อง', 'error');
+      showToast('❌ FB_DB_URL ในโค้ดไม่ถูกต้อง', 'error');
     }
   }
 
@@ -752,7 +739,7 @@
     if (!confirm('ต้องการออกจากระบบ?')) return;
     firebase.auth().signOut().then(() => {
       isConnected = false;
-      localStorage.removeItem('fbConfig');
+      // เก็บ email ไว้ แต่ล้าง session
       showConfigPanel();
       document.getElementById('fbDot').className = 'status-dot';
       document.getElementById('fbStatus').textContent = 'ไม่ได้เชื่อมต่อ';
@@ -843,37 +830,30 @@
   buildRelayGrid();
   addLog('กำลังตรวจสอบ session...', 'info');
 
-  // ─── Auto-login: ตรวจสอบ Firebase session ที่ค้างอยู่ ──
-  const saved = JSON.parse(localStorage.getItem('fbConfig') || '{}');
+  // ─── Auto-login: ใช้ hardcoded config + ตรวจ session ──────
+  try {
+    const firebaseConfig = {
+      apiKey: FB_API_KEY,
+      databaseURL: FB_DB_URL,
+      authDomain: new URL(FB_DB_URL).hostname.replace('-default-rtdb', '').replace(/\.firebasedatabase\.app$/, '') + '.firebaseapp.com',
+      projectId: new URL(FB_DB_URL).hostname.replace(/-default-rtdb.*/, '')
+    };
+    if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
 
-  if (saved.apiKey && saved.dbUrl) {
-    try {
-      const firebaseConfig = {
-        apiKey: saved.apiKey,
-        databaseURL: saved.dbUrl,
-        authDomain: new URL(saved.dbUrl).hostname.replace('-default-rtdb', '') + '.firebaseapp.com',
-        projectId: new URL(saved.dbUrl).hostname.replace(/-default-rtdb.*/, '')
-      };
-      if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
-
-      // ฟัง auth state — ถ้า token ยังใช้ได้จะ login อัตโนมัติ
-      firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-          onLoginSuccess(user.email);
-          addLog('Auto-login สำเร็จ: ' + user.email, 'ok');
-        } else {
-          showConfigPanel();
-          addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
-        }
-      });
-    } catch(e) {
-      showConfigPanel();
-      addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
-    }
-  } else {
+    // ถ้า token ยังใช้ได้ → เข้าหน้าควบคุมเลย ไม่ต้อง login ใหม่
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        onLoginSuccess(user.email);
+        addLog('Auto-login สำเร็จ: ' + user.email, 'ok');
+      } else {
+        showConfigPanel();
+        addLog('กรุณา Login เพื่อเข้าใช้งาน', 'info');
+      }
+    });
+  } catch(e) {
     showConfigPanel();
-    addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
+    addLog('⚠️ ตรวจสอบ FB_API_KEY และ FB_DB_URL ในโค้ด', 'err');
   }
 </script>
 
