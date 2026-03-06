@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP8266 Relay Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  
+  <!-- Firebase SDK v9 (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #111520;
+      --surface2: #181e2e;
+      --border: #1e2a40;
+      --accent: #00d4ff;
+      --accent2: #7b61ff;
+      --on-color: #00ff88;
+      --off-color: #ff4566;
+      --text: #e8eaf0;
+      --text-dim: #5a6a8a;
+      --glow: 0 0 20px rgba(0, 212, 255, 0.3);
+      --glow-green: 0 0 20px rgba(0, 255, 136, 0.4);
+      --glow-red: 0 0 20px rgba(255, 69, 102, 0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid Background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .chip-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: var(--glow);
+    }
+
+    h1 {
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: all 0.4s;
+    }
+
+    .status-dot.online {
+      background: var(--on-color);
+      box-shadow: 0 0 8px var(--on-color);
+      animation: pulse-dot 2s infinite;
+    }
+
+    .status-dot.offline {
+      background: var(--off-color);
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-label { color: var(--text-dim); font-size: 12px; }
+    .status-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .auth-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+    }
+
+    /* All Toggle Row */
+    .all-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .btn-all {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text-dim);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-all:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,212,255,0.05);
+    }
+
+    .btn-all.danger:hover {
+      border-color: var(--off-color);
+      color: var(--off-color);
+      background: rgba(255,69,102,0.05);
+    }
+
+    /* Relay Grid */
+    .relay-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .relay-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .relay-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--border);
+      transition: all 0.3s;
+    }
+
+    .relay-card.on {
+      border-color: rgba(0,255,136,0.3);
+      background: rgba(0,255,136,0.04);
+      box-shadow: var(--glow-green), inset 0 0 30px rgba(0,255,136,0.03);
+    }
+
+    .relay-card.on::before {
+      background: var(--on-color);
+      box-shadow: 0 0 10px var(--on-color);
+    }
+
+    .relay-card:hover:not(.on) {
+      border-color: rgba(0,212,255,0.3);
+      transform: translateY(-2px);
+    }
+
+    .relay-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .relay-icon {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      transition: all 0.3s;
+    }
+
+    .relay-card.on .relay-icon {
+      border-color: var(--on-color);
+      background: rgba(0,255,136,0.1);
+      box-shadow: 0 0 16px rgba(0,255,136,0.3);
+    }
+
+    .relay-name {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text);
+    }
+
+    .relay-name-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
+      outline: none;
+      padding: 2px 4px;
+      transition: border-color 0.2s;
+    }
+
+    .relay-name-input:focus {
+      border-bottom-color: var(--accent);
+    }
+
+    /* Toggle Switch */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 52px; height: 28px;
+    }
+
+    .toggle input {
+      opacity: 0; width: 0; height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      transition: all 0.3s;
+    }
+
+    .slider::before {
+      content: '';
+      position: absolute;
+      height: 20px; width: 20px;
+      left: 3px; bottom: 3px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+
+    input:checked + .slider {
+      background: rgba(0,255,136,0.15);
+      border-color: var(--on-color);
+    }
+
+    input:checked + .slider::before {
+      transform: translateX(24px);
+      background: var(--on-color);
+      box-shadow: 0 0 8px var(--on-color);
+    }
+
+    .state-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .relay-card.on .state-text { color: var(--on-color); }
+    .relay-card:not(.on) .state-text { color: var(--text-dim); }
+
+    /* Config Panel */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .config-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 480px) {
+      .input-row { grid-template-columns: 1fr; }
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .input-group input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .input-group input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 10px;
+      color: #000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-save:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--glow);
+    }
+
+    /* Log */
+    .log-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      height: 120px;
+      overflow-y: auto;
+    }
+
+    .log-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .log-line.ok { color: var(--on-color); }
+    .log-line.err { color: var(--off-color); }
+    .log-line.info { color: var(--accent); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success { border-color: var(--on-color); color: var(--on-color); }
+    .toast.error { border-color: var(--off-color); color: var(--off-color); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-row">
+      <div class="chip-icon">⚡</div>
+      <h1>Relay Control Panel</h1>
+    </div>
+    <p class="subtitle">ESP8266 Wemos D1 Mini · Firebase RTDB</p>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot" id="deviceDot"></div>
+      <span class="status-label">Device:</span>
+      <span class="status-value" id="deviceStatus">ออฟไลน์</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">IP:</span>
+      <span class="status-value" id="deviceIP">–</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Firebase:</span>
+      <div class="status-dot" id="fbDot"></div>
+      <span class="status-value" id="fbStatus">ไม่ได้เชื่อมต่อ</span>
+    </div>
+    <div class="auth-badge" id="authBadge">🔒 ยังไม่ login</div>
+  </div>
+
+  <!-- All Toggle Buttons -->
+  <div id="controlSection" style="display:none;">
+  <div class="all-controls">
+    <button class="btn-all" onclick="setAllRelays(true)">⚡ เปิดทั้งหมด</button>
+    <button class="btn-all danger" onclick="setAllRelays(false)">⭕ ปิดทั้งหมด</button>
+  </div>
+
+  <!-- Relay Cards -->
+  <div class="relay-grid" id="relayGrid">
+    <!-- สร้างโดย JavaScript -->
+  </div>
+  </div><!-- /controlSection -->
+
+  <!-- Firebase Config -->
+  <div id="configPanel" class="config-panel">
+    <div class="config-title">⚙️ ตั้งค่า Firebase</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>API Key</label>
+        <input type="text" id="cfgApiKey" placeholder="AIzaSy..." />
+      </div>
+      <div class="input-group">
+        <label>Database URL</label>
+        <input type="text" id="cfgDbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com" />
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="cfgEmail" placeholder="user@example.com" />
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="cfgPass" placeholder="รหัสผ่าน" />
+      </div>
+    </div>
+    <button class="btn-save" onclick="connectFirebase()">🔗 เชื่อมต่อ Firebase</button>
+  </div><!-- /configPanel -->
+
+  <!-- Log -->
+  <div class="config-title" style="padding: 0 4px 10px; font-size:12px; color: var(--text-dim);">
+    📋 Activity Log
+  </div>
+  <div class="log-box" id="logBox"></div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── Config ───────────────────────────────────────────────
+  const RELAY_ICONS = ['💡','❄️','🔌','🔧'];
+  const RELAY_LABELS = ['Relay 1','Relay 2','Relay 3','Relay 4'];
+
+  let db = null;
+  let relayStates = [false, false, false, false];
+  let relayLabels = [...RELAY_LABELS];
+  let isConnected = false;
+
+  // ─── Load saved config (localStorage = ค้างข้ามหน้า/ปิดเบราว์เซอร์) ──
+  function loadConfig() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('fbConfig') || '{}');
+      if (saved.apiKey) document.getElementById('cfgApiKey').value = saved.apiKey;
+      if (saved.dbUrl)  document.getElementById('cfgDbUrl').value  = saved.dbUrl;
+      if (saved.email)  document.getElementById('cfgEmail').value  = saved.email;
+      return saved;
+    } catch { return {}; }
+  }
+
+  // ─── Build Relay Cards ───────────────────────────────────
+  function buildRelayGrid() {
+    const grid = document.getElementById('relayGrid');
+    grid.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+      const card = document.createElement('div');
+      card.className = 'relay-card' + (relayStates[i] ? ' on' : '');
+      card.id = `card${i}`;
+      card.innerHTML = `
+        <div class="relay-number">CH-0${i+1}</div>
+        <div class="relay-icon" id="icon${i}">${RELAY_ICONS[i]}</div>
+        <input class="relay-name-input" id="label${i}" value="${relayLabels[i]}"
+          onclick="event.stopPropagation()"
+          onchange="saveLabel(${i}, this.value)"
+          title="คลิกเพื่อแก้ชื่อ" />
+        <div class="toggle-wrap">
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="toggle${i}" ${relayStates[i] ? 'checked' : ''}
+              onchange="toggleRelay(${i}, this.checked)" />
+            <span class="slider"></span>
+          </label>
+          <span class="state-text" id="stateText${i}">${relayStates[i] ? 'ON' : 'OFF'}</span>
+        </div>`;
+      card.addEventListener('click', () => {
+        const toggle = document.getElementById(`toggle${i}`);
+        toggle.checked = !toggle.checked;
+        toggleRelay(i, toggle.checked);
+      });
+      grid.appendChild(card);
+    }
+  }
+
+  // ─── Update single relay UI ──────────────────────────────
+  function updateRelayUI(idx, state) {
+    relayStates[idx] = state;
+    const card = document.getElementById(`card${idx}`);
+    const toggle = document.getElementById(`toggle${idx}`);
+    const stateText = document.getElementById(`stateText${idx}`);
+    if (!card) return;
+    card.className = 'relay-card' + (state ? ' on' : '');
+    toggle.checked = state;
+    stateText.textContent = state ? 'ON' : 'OFF';
+  }
+
+  // ─── Toggle Relay ────────────────────────────────────────
+  function toggleRelay(idx, state) {
+    if (!isConnected) {
+      showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase', 'error');
+      return;
+    }
+    const relayKey = `relay${idx + 1}`;
+    db.ref(`/relays/${relayKey}`).set(state)
+      .then(() => {
+        updateRelayUI(idx, state);
+        addLog(`Relay ${idx+1} → ${state ? 'ON' : 'OFF'}`, state ? 'ok' : '');
+        showToast(`Relay ${idx+1} ${state ? '✅ เปิด' : '⭕ ปิด'}`, state ? 'success' : '');
+      })
+      .catch(err => {
+        addLog('Error: ' + err.message, 'err');
+        showToast('❌ ' + err.message, 'error');
+      });
+  }
+
+  // ─── Set All Relays ──────────────────────────────────────
+  function setAllRelays(state) {
+    if (!isConnected) {
+      showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase', 'error');
+      return;
+    }
+    const updates = {};
+    for (let i = 1; i <= 4; i++) updates[`relay${i}`] = state;
+    db.ref('/relays').update(updates)
+      .then(() => {
+        for (let i = 0; i < 4; i++) updateRelayUI(i, state);
+        addLog(`ทุก Relay → ${state ? 'ON' : 'OFF'} (All)`, state ? 'ok' : '');
+        showToast(state ? '✅ เปิดทั้งหมดแล้ว' : '⭕ ปิดทั้งหมดแล้ว', state ? 'success' : '');
+      })
+      .catch(err => addLog('Error: ' + err.message, 'err'));
+  }
+
+  // ─── Save Label ──────────────────────────────────────────
+  function saveLabel(idx, value) {
+    relayLabels[idx] = value;
+    if (isConnected) {
+      db.ref(`/labels/relay${idx+1}`).set(value);
+    }
+  }
+
+  // ─── Connect Firebase ────────────────────────────────────
+  function connectFirebase() {
+    const apiKey = document.getElementById('cfgApiKey').value.trim();
+    const dbUrl = document.getElementById('cfgDbUrl').value.trim();
+    const email = document.getElementById('cfgEmail').value.trim();
+    const pass = document.getElementById('cfgPass').value;
+
+    if (!apiKey || !dbUrl || !email || !pass) {
+      showToast('❌ กรุณากรอกข้อมูลให้ครบ', 'error');
+      return;
+    }
+
+    // Save config to localStorage (ค้างแม้ปิดเบราว์เซอร์)
+    localStorage.setItem('fbConfig', JSON.stringify({ apiKey, dbUrl, email }));
+
+    addLog('กำลังเชื่อมต่อ Firebase...', 'info');
+
+    // Init Firebase (ถ้ายังไม่ได้ init)
+    try {
+      const firebaseConfig = {
+        apiKey,
+        databaseURL: dbUrl,
+        authDomain: new URL(dbUrl).hostname.replace('-default-rtdb', '') + '.firebaseapp.com',
+        projectId: new URL(dbUrl).hostname.replace('-default-rtdb.firebaseio.com', '')
+                                           .replace('.firebaseio.com', '')
+      };
+
+      // ลบ app เก่าถ้ามี
+      if (firebase.apps.length > 0) {
+        firebase.app().delete().then(() => initApp(firebaseConfig, email, pass));
+      } else {
+        initApp(firebaseConfig, email, pass);
+      }
+    } catch (e) {
+      addLog('Config Error: ' + e.message, 'err');
+      showToast('❌ Database URL ไม่ถูกต้อง', 'error');
+    }
+  }
+
+  function initApp(config, email, pass) {
+    firebase.initializeApp(config);
+    db = firebase.database();
+
+    // ตั้ง persistence = LOCAL → login ค้างแม้ปิด/เปิดเบราว์เซอร์
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => firebase.auth().signInWithEmailAndPassword(email, pass))
+      .then(userCred => {
+        onLoginSuccess(userCred.user.email);
+      })
+      .catch(err => {
+        addLog('Auth Error: ' + err.message, 'err');
+        showToast('❌ Login ไม่สำเร็จ: ' + err.code, 'error');
+        isConnected = false;
+      });
+  }
+
+  // ─── เรียกเมื่อ login สำเร็จ ─────────────────────────────
+  function onLoginSuccess(email) {
+    isConnected = true;
+    db = db || firebase.database();
+    showControlPanel();
+    document.getElementById('fbDot').className = 'status-dot online';
+    document.getElementById('fbStatus').textContent = 'เชื่อมต่อแล้ว';
+    document.getElementById('authBadge').innerHTML =
+      `✅ ${email} <span onclick="logout()" style="cursor:pointer;margin-left:8px;color:var(--off-color);font-size:11px;" title="Logout">✕ ออก</span>`;
+    addLog('เชื่อมต่อ Firebase สำเร็จ! (' + email + ')', 'ok');
+    showToast('✅ เชื่อมต่อสำเร็จ!', 'success');
+    startListeners();
+  }
+
+  // ─── Logout ──────────────────────────────────────────────
+  function logout() {
+    if (!confirm('ต้องการออกจากระบบ?')) return;
+    firebase.auth().signOut().then(() => {
+      isConnected = false;
+      localStorage.removeItem('fbConfig');
+      showConfigPanel();
+      document.getElementById('fbDot').className = 'status-dot';
+      document.getElementById('fbStatus').textContent = 'ไม่ได้เชื่อมต่อ';
+      document.getElementById('authBadge').innerHTML = '🔒 ยังไม่ login';
+      addLog('Logout แล้ว', 'info');
+      showToast('👋 Logout สำเร็จ', '');
+    });
+  }
+
+  // ─── แสดง/ซ่อน Panel ─────────────────────────────────────
+  function showControlPanel() {
+    document.getElementById('controlSection').style.display = '';
+    document.getElementById('configPanel').style.display = 'none';
+  }
+
+  function showConfigPanel() {
+    document.getElementById('controlSection').style.display = 'none';
+    document.getElementById('configPanel').style.display = '';
+  }
+
+  // ─── Start Firebase Listeners ────────────────────────────
+  function startListeners() {
+    // ฟัง relay states
+    db.ref('/relays').on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
+      for (let i = 1; i <= 4; i++) {
+        if (data[`relay${i}`] !== undefined) {
+          updateRelayUI(i - 1, data[`relay${i}`]);
+        }
+      }
+    });
+
+    // ฟัง device status
+    db.ref('/device').on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
+      const dot = document.getElementById('deviceDot');
+      const status = document.getElementById('deviceStatus');
+      const ip = document.getElementById('deviceIP');
+      if (data.status === 'online') {
+        dot.className = 'status-dot online';
+        status.textContent = 'ออนไลน์';
+      } else {
+        dot.className = 'status-dot offline';
+        status.textContent = 'ออฟไลน์';
+      }
+      if (data.ip) ip.textContent = data.ip;
+    });
+
+    // ฟัง labels
+    db.ref('/labels').on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
+      for (let i = 1; i <= 4; i++) {
+        if (data[`relay${i}`]) {
+          relayLabels[i-1] = data[`relay${i}`];
+          const el = document.getElementById(`label${i-1}`);
+          if (el) el.value = data[`relay${i}`];
+        }
+      }
+    });
+
+    addLog('เริ่มรับข้อมูล Real-time แล้ว', 'info');
+  }
+
+  // ─── Log ────────────────────────────────────────────────
+  function addLog(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const now = new Date().toLocaleTimeString('th-TH');
+    const line = document.createElement('div');
+    line.className = `log-line ${type}`;
+    line.textContent = `[${now}] ${msg}`;
+    box.prepend(line);
+    if (box.children.length > 50) box.lastChild.remove();
+  }
+
+  // ─── Toast ───────────────────────────────────────────────
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.className = 'toast', 2500);
+  }
+
+  // ─── Init ───────────────────────────────────────────────
+  loadConfig();
+  buildRelayGrid();
+  addLog('กำลังตรวจสอบ session...', 'info');
+
+  // ─── Auto-login: ตรวจสอบ Firebase session ที่ค้างอยู่ ──
+  const saved = JSON.parse(localStorage.getItem('fbConfig') || '{}');
+
+  if (saved.apiKey && saved.dbUrl) {
+    try {
+      const firebaseConfig = {
+        apiKey: saved.apiKey,
+        databaseURL: saved.dbUrl,
+        authDomain: new URL(saved.dbUrl).hostname.replace('-default-rtdb', '') + '.firebaseapp.com',
+        projectId: new URL(saved.dbUrl).hostname.replace(/-default-rtdb.*/, '')
+      };
+      if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+
+      // ฟัง auth state — ถ้า token ยังใช้ได้จะ login อัตโนมัติ
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+          onLoginSuccess(user.email);
+          addLog('Auto-login สำเร็จ: ' + user.email, 'ok');
+        } else {
+          showConfigPanel();
+          addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
+        }
+      });
+    } catch(e) {
+      showConfigPanel();
+      addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
+    }
+  } else {
+    showConfigPanel();
+    addLog('ยินดีต้อนรับ! กรอก Firebase Config แล้วกด เชื่อมต่อ', 'info');
+  }
+</script>
+
+</body>
+</html>
