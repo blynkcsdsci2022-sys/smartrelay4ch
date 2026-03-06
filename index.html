@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP8266 Relay Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <style>
+    :root{
+      --bg:#0a0c10;--surface:#111520;--surface2:#181e2e;--border:#1e2a40;
+      --accent:#00d4ff;--accent2:#7b61ff;--on-color:#00ff88;--off-color:#ff4566;
+      --warn:#ffaa00;--text:#e8eaf0;--text-dim:#5a6a8a;
+      --glow:0 0 20px rgba(0,212,255,.3);--glow-green:0 0 20px rgba(0,255,136,.4);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+    .wrapper{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+
+    /* ── Header ── */
+    header{text-align:center;margin-bottom:28px;}
+    .logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;}
+    .chip-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:var(--glow);}
+    h1{font-size:clamp(20px,4vw,30px);font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .subtitle{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+
+    /* ── Clock Bar ── */
+    .clock-bar{
+      display:flex;align-items:center;justify-content:center;gap:20px;
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:14px 24px;margin-bottom:16px;flex-wrap:wrap;gap:16px;
+    }
+    .clock-block{display:flex;flex-direction:column;align-items:center;gap:3px;}
+    .clock-time{
+      font-family:'JetBrains Mono',monospace;font-size:clamp(26px,5vw,40px);
+      font-weight:600;letter-spacing:4px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      line-height:1;
+    }
+    .clock-date{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);letter-spacing:1px;}
+    .clock-divider{width:1px;height:40px;background:var(--border);}
+    .clock-esp{display:flex;flex-direction:column;align-items:center;gap:4px;}
+    .clock-esp-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+    .clock-esp-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);letter-spacing:1px;}
+    .ntp-badge{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:10px;border:1px solid var(--border);color:var(--text-dim);}
+    .ntp-badge.ok{border-color:rgba(0,255,136,.3);color:var(--on-color);background:rgba(0,255,136,.06);}
+
+    /* ── Status Bar ── */
+    .status-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 20px;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+    .status-item{display:flex;align-items:center;gap:8px;font-size:13px;}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);transition:all .4s;}
+    .status-dot.online{background:var(--on-color);box-shadow:0 0 8px var(--on-color);animation:pulse-dot 2s infinite;}
+    .status-dot.offline{background:var(--off-color);}
+    @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.4;}}
+    .status-label{color:var(--text-dim);font-size:12px;}
+    .status-value{font-family:'JetBrains Mono',monospace;font-size:12px;}
+    .auth-badge{display:flex;align-items:center;gap:6px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);padding:4px 12px;border-radius:20px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent);}
+
+    /* ── All controls ── */
+    .all-controls{display:flex;gap:10px;margin-bottom:22px;}
+    .btn-all{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-dim);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+    .btn-all:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.05);}
+    .btn-all.danger:hover{border-color:var(--off-color);color:var(--off-color);background:rgba(255,69,102,.05);}
+
+    /* ── Relay list ── */
+    .relay-list{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;}
+    .relay-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all .3s;position:relative;}
+    .relay-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--border);transition:all .3s;}
+    .relay-card.on{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.025);}
+    .relay-card.on::before{background:var(--on-color);box-shadow:0 0 8px var(--on-color);}
+
+    .relay-top{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;}
+    .relay-icon{width:42px;height:42px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:all .3s;}
+    .relay-card.on .relay-icon{border-color:var(--on-color);background:rgba(0,255,136,.1);box-shadow:0 0 10px rgba(0,255,136,.25);}
+    .relay-info{flex:1;min-width:0;}
+    .relay-number{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+    .relay-name-input{background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;width:100%;outline:none;padding:2px 0;transition:border-color .2s;}
+    .relay-name-input:focus{border-bottom-color:var(--accent);}
+    .relay-right{display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
+    .timer-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--border);color:var(--text-dim);white-space:nowrap;}
+    .timer-badge.active{border-color:var(--warn);color:var(--warn);background:rgba(255,170,0,.08);}
+
+    /* Toggle */
+    .toggle{position:relative;width:50px;height:26px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .slider{position:absolute;cursor:pointer;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:26px;transition:all .3s;}
+    .slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:var(--text-dim);border-radius:50%;transition:all .3s;}
+    input:checked+.slider{background:rgba(0,255,136,.15);border-color:var(--on-color);}
+    input:checked+.slider::before{transform:translateX(24px);background:var(--on-color);box-shadow:0 0 8px var(--on-color);}
+    .state-text{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;min-width:24px;}
+    .relay-card.on .state-text{color:var(--on-color);}
+    .relay-card:not(.on) .state-text{color:var(--text-dim);}
+
+    .btn-expand{background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);padding:4px 10px;font-size:11px;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+    .btn-expand:hover,.btn-expand.open{border-color:var(--accent2);color:var(--accent2);background:rgba(123,97,255,.08);}
+
+    /* ── Schedule Panel ── */
+    .schedule-panel{border-top:1px solid var(--border);max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s ease;padding:0 18px;}
+    .schedule-panel.open{max-height:440px;padding:16px 18px 18px;}
+    .sched-title{font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
+
+    .sched-slots{display:flex;flex-direction:column;gap:10px;}
+    .sched-slot{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;transition:border-color .2s;}
+    .sched-slot.enabled{border-color:rgba(255,170,0,.3);}
+    .slot-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);min-width:52px;}
+
+    /* Mini toggle */
+    .mini-toggle{position:relative;width:34px;height:19px;flex-shrink:0;}
+    .mini-toggle input{opacity:0;width:0;height:0;}
+    .mini-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface);border:1px solid var(--border);border-radius:19px;transition:all .3s;}
+    .mini-slider::before{content:'';position:absolute;height:13px;width:13px;left:2px;bottom:2px;background:var(--text-dim);border-radius:50%;transition:all .3s;}
+    .mini-toggle input:checked+.mini-slider{background:rgba(255,170,0,.15);border-color:var(--warn);}
+    .mini-toggle input:checked+.mini-slider::before{transform:translateX(15px);background:var(--warn);}
+    .slot-en-lbl{font-size:11px;color:var(--text-dim);min-width:44px;}
+    .slot-en-lbl.on{color:var(--warn);}
+
+    .time-pair{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;}
+    .time-group{display:flex;align-items:center;gap:6px;}
+    .time-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;}
+    .time-tag.on-tag{background:rgba(0,255,136,.1);color:var(--on-color);border:1px solid rgba(0,255,136,.2);}
+    .time-tag.off-tag{background:rgba(255,69,102,.1);color:var(--off-color);border:1px solid rgba(255,69,102,.2);}
+    .time-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:5px 8px;outline:none;width:86px;transition:border-color .2s;}
+    .time-input:focus{border-color:var(--accent);}
+
+    .sched-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;}
+    .sched-note{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
+    .sched-note .dot-esp{width:6px;height:6px;border-radius:50%;background:var(--on-color);box-shadow:0 0 5px var(--on-color);display:inline-block;}
+    .btn-save-sched{padding:7px 18px;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:7px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
+    .btn-save-sched:hover{opacity:.85;transform:translateY(-1px);}
+
+    /* ── Login Panel ── */
+    .config-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;}
+    .config-title{font-size:13px;font-weight:600;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:18px;}
+    .input-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+    @media(max-width:480px){.input-row{grid-template-columns:1fr;}}
+    .input-group{display:flex;flex-direction:column;gap:6px;}
+    .input-group label{font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+    .input-group input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;width:100%;}
+    .input-group input:focus{border-color:var(--accent);}
+    .btn-save{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#000;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+    .btn-save:hover{transform:translateY(-1px);box-shadow:var(--glow);}
+
+    /* ── Log ── */
+    .log-title{padding:0 4px 8px;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:1px;}
+    .log-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;height:110px;overflow-y:auto;}
+    .log-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);}
+    .log-line.ok{color:var(--on-color);}
+    .log-line.err{color:var(--off-color);}
+    .log-line.info{color:var(--accent);}
+    .log-line.warn{color:var(--warn);}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 18px;font-size:13px;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999;}
+    .toast.show{opacity:1;transform:translateY(0);}
+    .toast.success{border-color:var(--on-color);color:var(--on-color);}
+    .toast.error{border-color:var(--off-color);color:var(--off-color);}
+    .toast.warn{border-color:var(--warn);color:var(--warn);}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-row">
+      <div class="chip-icon">⚡</div>
+      <h1>Relay Control Panel</h1>
+    </div>
+    <p class="subtitle">ESP8266 Wemos D1 Mini · Firebase RTDB · NTP</p>
+  </header>
+
+  <!-- Clock Bar -->
+  <div class="clock-bar">
+    <div class="clock-block">
+      <div class="clock-time" id="clockTime">--:--:--</div>
+      <div class="clock-date" id="clockDate">กำลังโหลด...</div>
+    </div>
+    <div class="clock-divider"></div>
+    <div class="clock-esp">
+      <span class="clock-esp-label">⏱ ESP8266 Time</span>
+      <span class="clock-esp-val" id="espTime">–</span>
+      <span class="ntp-badge" id="ntpBadge">NTP –</span>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot" id="deviceDot"></div>
+      <span class="status-label">Device:</span>
+      <span class="status-value" id="deviceStatus">ออฟไลน์</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">IP:</span>
+      <span class="status-value" id="deviceIP">–</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Firebase:</span>
+      <div class="status-dot" id="fbDot"></div>
+      <span class="status-value" id="fbStatus">ไม่ได้เชื่อมต่อ</span>
+    </div>
+    <div class="auth-badge" id="authBadge">🔒 ยังไม่ login</div>
+  </div>
+
+  <!-- Control Section -->
+  <div id="controlSection" style="display:none;">
+    <div class="all-controls">
+      <button class="btn-all" onclick="setAllRelays(true)">⚡ เปิดทั้งหมด</button>
+      <button class="btn-all danger" onclick="setAllRelays(false)">⭕ ปิดทั้งหมด</button>
+    </div>
+    <div class="relay-list" id="relayList"></div>
+  </div>
+
+  <!-- Login Panel -->
+  <div id="configPanel" class="config-panel">
+    <div class="config-title">🔐 เข้าสู่ระบบ</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="cfgEmail" placeholder="user@example.com" />
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="cfgPass" placeholder="รหัสผ่าน"
+          onkeydown="if(event.key==='Enter')connectFirebase()" />
+      </div>
+    </div>
+    <button class="btn-save" onclick="connectFirebase()">🔗 เข้าสู่ระบบ</button>
+  </div>
+
+  <div class="log-title">📋 Activity Log</div>
+  <div class="log-box" id="logBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── ✏️ แก้ค่าตรงนี้เพียงครั้งเดียว ──────────────────────────
+const FB_API_KEY = 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+const FB_DB_URL  = 'https://your-project-default-rtdb.firebaseio.com';
+// ────────────────────────────────────────────────────────────
+
+const RELAY_ICONS  = ['💡','❄️','🔌','🔧'];
+const RELAY_LABELS = ['Relay 1','Relay 2','Relay 3','Relay 4'];
+const TH_DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+let db = null, isConnected = false, scheduleTimer = null;
+let relayStates = [false,false,false,false];
+let relayLabels = [...RELAY_LABELS];
+let schedules = Array.from({length:4}, () => ({
+  s1:{en:false,on:'06:00',off:'08:00'},
+  s2:{en:false,on:'18:00',off:'20:00'}
+}));
+
+// ════════════════ CLOCK ════════════════════════════════════
+
+function startClock() {
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clockTime').textContent = `${hh}:${mm}:${ss}`;
+
+  const day = TH_DAYS[now.getDay()];
+  const d   = now.getDate();
+  const mon = TH_MONTHS[now.getMonth()];
+  const yr  = now.getFullYear() + 543;
+  document.getElementById('clockDate').textContent = `${day} ${d} ${mon} ${yr}`;
+}
+
+// ════════════════ RELAY CARDS ══════════════════════════════
+
+function buildRelayList() {
+  const list = document.getElementById('relayList');
+  list.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const card = document.createElement('div');
+    card.className = 'relay-card' + (relayStates[i] ? ' on' : '');
+    card.id = 'card'+i;
+    card.innerHTML = `
+      <div class="relay-top" onclick="handleCardClick(event,${i})">
+        <div class="relay-icon" id="icon${i}">${RELAY_ICONS[i]}</div>
+        <div class="relay-info">
+          <div class="relay-number">CH-0${i+1}</div>
+          <input class="relay-name-input" id="label${i}" value="${relayLabels[i]}"
+            onclick="event.stopPropagation()" onchange="saveLabel(${i},this.value)" />
+        </div>
+        <div class="relay-right">
+          <span class="timer-badge" id="timerBadge${i}">⏱ ไม่มีกำหนด</span>
+          <button class="btn-expand" id="expandBtn${i}"
+            onclick="event.stopPropagation();toggleSchedule(${i})">⏰ ตั้งเวลา</button>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="toggle${i}" ${relayStates[i]?'checked':''}
+              onchange="toggleRelay(${i},this.checked)" />
+            <span class="slider"></span>
+          </label>
+          <span class="state-text" id="stateText${i}">${relayStates[i]?'ON':'OFF'}</span>
+        </div>
+      </div>
+      <div class="schedule-panel" id="schedPanel${i}">
+        <div class="sched-title">⏰ ตั้งเวลา — Relay ${i+1}
+          <span style="font-size:9px;color:var(--on-color);margin-left:8px;">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--on-color);box-shadow:0 0 5px var(--on-color);"></span>
+            ทำงานบน ESP8266 ตลอด 24 ชม.
+          </span>
+        </div>
+        <div class="sched-slots">
+          ${buildSlotHTML(i,0,'ช่วงที่ 1')}
+          ${buildSlotHTML(i,1,'ช่วงที่ 2')}
+        </div>
+        <div class="sched-footer">
+          <span class="sched-note">
+            <span class="dot-esp"></span>
+            ESP8266 ใช้ NTP sync เวลาจาก internet อัตโนมัติ
+          </span>
+          <button class="btn-save-sched" onclick="saveSchedule(${i})">💾 บันทึก</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  }
+  for (let i=0;i<4;i++) refreshSlotUI(i);
+}
+
+function buildSlotHTML(ri, si, label) {
+  return `
+    <div class="sched-slot" id="slot_${ri}_${si}">
+      <span class="slot-label">${label}</span>
+      <label class="mini-toggle">
+        <input type="checkbox" id="slotEn_${ri}_${si}" onchange="onSlotEnableChange(${ri},${si})">
+        <span class="mini-slider"></span>
+      </label>
+      <span class="slot-en-lbl" id="slotEnLbl_${ri}_${si}">ปิดใช้</span>
+      <div class="time-pair">
+        <div class="time-group">
+          <span class="time-tag on-tag">เปิด</span>
+          <input class="time-input" type="time" id="slotOn_${ri}_${si}" value="06:00" />
+        </div>
+        <div class="time-group">
+          <span class="time-tag off-tag">ปิด</span>
+          <input class="time-input" type="time" id="slotOff_${ri}_${si}" value="08:00" />
+        </div>
+      </div>
+    </div>`;
+}
+
+function refreshSlotUI(ri) {
+  ['s1','s2'].forEach((sk,si) => {
+    const s   = schedules[ri][sk];
+    const enEl  = document.getElementById(`slotEn_${ri}_${si}`);
+    const onEl  = document.getElementById(`slotOn_${ri}_${si}`);
+    const offEl = document.getElementById(`slotOff_${ri}_${si}`);
+    const lbl   = document.getElementById(`slotEnLbl_${ri}_${si}`);
+    const slot  = document.getElementById(`slot_${ri}_${si}`);
+    if (!enEl) return;
+    enEl.checked = s.en;
+    onEl.value   = s.on;
+    offEl.value  = s.off;
+    lbl.textContent = s.en ? 'เปิดใช้' : 'ปิดใช้';
+    lbl.className   = 'slot-en-lbl'+(s.en?' on':'');
+    slot.className  = 'sched-slot'+(s.en?' enabled':'');
+  });
+  updateTimerBadge(ri);
+}
+
+function onSlotEnableChange(ri, si) {
+  const sk = si===0?'s1':'s2';
+  const en = document.getElementById(`slotEn_${ri}_${si}`).checked;
+  schedules[ri][sk].en = en;
+  const lbl  = document.getElementById(`slotEnLbl_${ri}_${si}`);
+  const slot = document.getElementById(`slot_${ri}_${si}`);
+  lbl.textContent = en?'เปิดใช้':'ปิดใช้';
+  lbl.className   = 'slot-en-lbl'+(en?' on':'');
+  slot.className  = 'sched-slot'+(en?' enabled':'');
+}
+
+function updateTimerBadge(ri) {
+  const badge = document.getElementById(`timerBadge${ri}`);
+  if (!badge) return;
+  const active = schedules[ri].s1.en || schedules[ri].s2.en;
+  if (!active) {
+    badge.textContent = '⏱ ไม่มีกำหนด';
+    badge.className = 'timer-badge';
+  } else {
+    const parts = [];
+    if (schedules[ri].s1.en) parts.push(schedules[ri].s1.on+'–'+schedules[ri].s1.off);
+    if (schedules[ri].s2.en) parts.push(schedules[ri].s2.on+'–'+schedules[ri].s2.off);
+    badge.textContent = '⏰ '+parts.join(' / ');
+    badge.className = 'timer-badge active';
+  }
+}
+
+function toggleSchedule(ri) {
+  const panel = document.getElementById('schedPanel'+ri);
+  const btn   = document.getElementById('expandBtn'+ri);
+  const wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.schedule-panel').forEach(p=>p.classList.remove('open'));
+  document.querySelectorAll('.btn-expand').forEach(b=>{b.classList.remove('open');b.textContent='⏰ ตั้งเวลา';});
+  if (!wasOpen) { panel.classList.add('open'); btn.classList.add('open'); btn.textContent='✕ ปิด'; }
+}
+
+// ════════════════ SCHEDULE SAVE ════════════════════════════
+
+function saveSchedule(ri) {
+  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
+  ['s1','s2'].forEach((sk,si) => {
+    schedules[ri][sk] = {
+      en:  document.getElementById(`slotEn_${ri}_${si}`).checked,
+      on:  document.getElementById(`slotOn_${ri}_${si}`).value,
+      off: document.getElementById(`slotOff_${ri}_${si}`).value
+    };
+  });
+  db.ref(`/schedules/relay${ri+1}`).set(schedules[ri])
+    .then(() => {
+      updateTimerBadge(ri);
+      addLog(`💾 บันทึกตารางเวลา Relay ${ri+1} → ESP8266 จะรับทันที`,'warn');
+      showToast(`✅ บันทึกตาราง Relay ${ri+1}`,'success');
+    })
+    .catch(err => addLog('Error: '+err.message,'err'));
+}
+
+// ════════════════ RELAY CONTROL ════════════════════════════
+
+function handleCardClick(e, ri) {
+  const t = document.getElementById('toggle'+ri);
+  t.checked = !t.checked;
+  toggleRelay(ri, t.checked);
+}
+
+function updateRelayUI(idx, state) {
+  relayStates[idx] = state;
+  const card = document.getElementById('card'+idx);
+  const t    = document.getElementById('toggle'+idx);
+  const st   = document.getElementById('stateText'+idx);
+  if (!card) return;
+  card.className = 'relay-card'+(state?' on':'');
+  t.checked = state;
+  st.textContent = state?'ON':'OFF';
+}
+
+function toggleRelay(idx, state) {
+  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
+  db.ref(`/relays/relay${idx+1}`).set(state)
+    .then(() => {
+      updateRelayUI(idx, state);
+      addLog(`Relay ${idx+1} → ${state?'ON':'OFF'}`, state?'ok':'');
+      showToast(`Relay ${idx+1} ${state?'✅ เปิด':'⭕ ปิด'}`, state?'success':'');
+    })
+    .catch(err => { addLog('Error: '+err.message,'err'); showToast('❌ '+err.message,'error'); });
+}
+
+function setAllRelays(state) {
+  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
+  const upd = {};
+  for (let i=1;i<=4;i++) upd['relay'+i]=state;
+  db.ref('/relays').update(upd)
+    .then(() => {
+      for (let i=0;i<4;i++) updateRelayUI(i,state);
+      addLog(`ทุก Relay → ${state?'ON':'OFF'}`, state?'ok':'');
+      showToast(state?'✅ เปิดทั้งหมดแล้ว':'⭕ ปิดทั้งหมดแล้ว', state?'success':'');
+    }).catch(err=>addLog('Error: '+err.message,'err'));
+}
+
+function saveLabel(idx, val) {
+  relayLabels[idx]=val;
+  if (isConnected) db.ref(`/labels/relay${idx+1}`).set(val);
+}
+
+// ════════════════ FIREBASE ═════════════════════════════════
+
+function loadConfig() {
+  try {
+    const s = JSON.parse(localStorage.getItem('fbConfig')||'{}');
+    if (s.email) document.getElementById('cfgEmail').value = s.email;
+  } catch {}
+}
+
+function buildFirebaseConfig() {
+  const host = new URL(FB_DB_URL).hostname;
+  return {
+    apiKey: FB_API_KEY,
+    databaseURL: FB_DB_URL,
+    authDomain: host.replace('-default-rtdb','').replace(/\.firebasedatabase\.app$/,'') + '.firebaseapp.com',
+    projectId:  host.replace(/-default-rtdb.*/,'')
+  };
+}
+
+function connectFirebase() {
+  const email = document.getElementById('cfgEmail').value.trim();
+  const pass  = document.getElementById('cfgPass').value;
+  if (!email||!pass) { showToast('❌ กรุณากรอก Email และ Password','error'); return; }
+  localStorage.setItem('fbConfig', JSON.stringify({email}));
+  addLog('กำลัง Login...','info');
+  try {
+    const cfg = buildFirebaseConfig();
+    if (firebase.apps.length>0) firebase.app().delete().then(()=>initApp(cfg,email,pass));
+    else initApp(cfg,email,pass);
+  } catch(e) {
+    addLog('Config Error: '+e.message,'err');
+    showToast('❌ DB URL ในโค้ดไม่ถูกต้อง','error');
+  }
+}
+
+function initApp(cfg, email, pass) {
+  firebase.initializeApp(cfg);
+  db = firebase.database();
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .then(()=>firebase.auth().signInWithEmailAndPassword(email,pass))
+    .then(uc=>onLoginSuccess(uc.user.email))
+    .catch(err=>{ addLog('Auth Error: '+err.message,'err'); showToast('❌ Login ไม่สำเร็จ: '+err.code,'error'); isConnected=false; });
+}
+
+function onLoginSuccess(email) {
+  isConnected=true;
+  db=db||firebase.database();
+  showControlPanel();
+  document.getElementById('fbDot').className='status-dot online';
+  document.getElementById('fbStatus').textContent='เชื่อมต่อแล้ว';
+  document.getElementById('authBadge').innerHTML=
+    `✅ ${email} <span onclick="logout()" style="cursor:pointer;margin-left:8px;color:var(--off-color);font-size:11px;" title="Logout">✕ ออก</span>`;
+  addLog('เชื่อมต่อ Firebase สำเร็จ! ('+email+')','ok');
+  showToast('✅ เชื่อมต่อสำเร็จ!','success');
+  startListeners();
+}
+
+function logout() {
+  if (!confirm('ต้องการออกจากระบบ?')) return;
+  firebase.auth().signOut().then(()=>{
+    isConnected=false;
+    showConfigPanel();
+    document.getElementById('fbDot').className='status-dot';
+    document.getElementById('fbStatus').textContent='ไม่ได้เชื่อมต่อ';
+    document.getElementById('authBadge').innerHTML='🔒 ยังไม่ login';
+    addLog('Logout แล้ว','info');
+    showToast('👋 Logout สำเร็จ','');
+  });
+}
+
+function showControlPanel(){ document.getElementById('controlSection').style.display=''; document.getElementById('configPanel').style.display='none'; }
+function showConfigPanel(){ document.getElementById('controlSection').style.display='none'; document.getElementById('configPanel').style.display=''; }
+
+// ════════════════ LISTENERS ════════════════════════════════
+
+function startListeners() {
+  // Relay states
+  db.ref('/relays').on('value', snap => {
+    const d=snap.val(); if(!d) return;
+    for(let i=1;i<=4;i++) if(d['relay'+i]!==undefined) updateRelayUI(i-1,d['relay'+i]);
+  });
+
+  // Device status + ESP time
+  db.ref('/device').on('value', snap => {
+    const d=snap.val(); if(!d) return;
+    document.getElementById('deviceDot').className = d.status==='online'?'status-dot online':'status-dot offline';
+    document.getElementById('deviceStatus').textContent = d.status==='online'?'ออนไลน์':'ออฟไลน์';
+    if(d.ip) document.getElementById('deviceIP').textContent=d.ip;
+    // ESP time & NTP badge
+    if(d.espTime) {
+      document.getElementById('espTime').textContent = d.espTime;
+      const badge = document.getElementById('ntpBadge');
+      badge.textContent = '✅ NTP Synced';
+      badge.className = 'ntp-badge ok';
+    }
+  });
+
+  // Labels
+  db.ref('/labels').on('value', snap => {
+    const d=snap.val(); if(!d) return;
+    for(let i=1;i<=4;i++) {
+      if(d['relay'+i]) {
+        relayLabels[i-1]=d['relay'+i];
+        const el=document.getElementById('label'+(i-1));
+        if(el) el.value=d['relay'+i];
+      }
+    }
+  });
+
+  // Schedules
+  db.ref('/schedules').on('value', snap => {
+    const d=snap.val(); if(!d) return;
+    for(let i=1;i<=4;i++) {
+      if(d['relay'+i]) {
+        schedules[i-1]=d['relay'+i];
+        refreshSlotUI(i-1);
+      }
+    }
+    addLog('📅 โหลดตารางเวลาแล้ว (ESP8266 sync อัตโนมัติ)','warn');
+  });
+
+  addLog('เริ่มรับข้อมูล Real-time แล้ว','info');
+}
+
+// ════════════════ HELPERS ══════════════════════════════════
+
+function addLog(msg, type='') {
+  const box=document.getElementById('logBox');
+  const now=new Date().toLocaleTimeString('th-TH');
+  const line=document.createElement('div');
+  line.className='log-line '+type;
+  line.textContent='['+now+'] '+msg;
+  box.prepend(line);
+  if(box.children.length>60) box.lastChild.remove();
+}
+
+function showToast(msg, type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  setTimeout(()=>t.className='toast',2500);
+}
+
+// ════════════════ INIT ═════════════════════════════════════
+
+loadConfig();
+buildRelayList();
+startClock();
+addLog('กำลังตรวจสอบ session...','info');
+
+try {
+  const cfg = buildFirebaseConfig();
+  if(firebase.apps.length===0) firebase.initializeApp(cfg);
+  db=firebase.database();
+  firebase.auth().onAuthStateChanged(user=>{
+    if(user) { onLoginSuccess(user.email); addLog('Auto-login: '+user.email,'ok'); }
+    else { showConfigPanel(); addLog('กรุณา Login เพื่อเข้าใช้งาน','info'); }
+  });
+} catch(e) {
+  showConfigPanel();
+  addLog('⚠️ ตรวจสอบ FB_API_KEY และ FB_DB_URL ในโค้ด','err');
+}
+</script>
+</body>
+</html>
