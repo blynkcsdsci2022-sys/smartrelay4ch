@@ -888,7 +888,13 @@ async function saveSchedule(index) {
   const enabled = document.getElementById(`sch-en-${index}`).checked;
   const onVal   = document.getElementById(`on-${index}`).value.split(':');
   const offVal  = document.getElementById(`off-${index}`).value.split(':');
-  
+
+  // ======= เพิ่ม debug log ตรงนี้ =======
+  console.log(`Relay ${index+1} Schedule:`);
+  console.log(`  ON  = ${onVal[0]}:${onVal[1]}`);
+  console.log(`  OFF = ${offVal[0]}:${offVal[1]}`);
+  // =======================================
+
   const dayBtns = document.querySelectorAll(`#days-${index} .day-btn`);
   const days = {};
   dayBtns.forEach((btn, di) => {
@@ -897,12 +903,18 @@ async function saveSchedule(index) {
 
   const schedule = {
     enabled,
-    onHour:  parseInt(onVal[0]),
+    onHour:  parseInt(onVal[0]),   // ← ต้องได้ตัวเลข ไม่ใช่ string
     onMin:   parseInt(onVal[1]),
     offHour: parseInt(offVal[0]),
     offMin:  parseInt(offVal[1]),
     days
   };
+
+  // ตรวจสอบก่อน save
+  if (schedule.onHour === schedule.offHour && schedule.onMin >= schedule.offMin) {
+    showToast('เวลาปิดต้องมากกว่าเวลาเปิด!', 'error');
+    return;
+  }
 
   try {
     await db.ref(`/relays/relay${index+1}/schedule`).set(schedule);
