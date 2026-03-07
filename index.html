@@ -724,11 +724,47 @@ document.getElementById('passwordInput').addEventListener('keydown', e => {
 });
 
 // ============ APP INIT ============
+let lastDeviceData = null;
+
 function initApp() {
   renderRelayGrid();
   listenFirebase();
+  setInterval(checkOnlineStatus, 5000);
 }
 
+function checkOnlineStatus() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+
+  if (!lastDeviceData || !lastDeviceData.currentTime) {
+    dot.classList.remove('online');
+    dot.style.background = '';
+    dot.style.boxShadow  = '';
+    txt.textContent = 'OFFLINE';
+    return;
+  }
+
+  const espTime = new Date(lastDeviceData.currentTime.replace(' ', 'T') + '+07:00').getTime();
+  const diffSec = (new Date().getTime() - espTime) / 1000;
+
+  if (diffSec < 10) {
+    dot.classList.add('online');
+    dot.style.background = '';
+    dot.style.boxShadow  = '';
+    txt.textContent = 'ONLINE';
+  } else if (diffSec < 30) {
+    dot.classList.remove('online');
+    dot.style.background = 'var(--amber)';
+    dot.style.boxShadow  = '0 0 8px var(--amber)';
+    txt.textContent = 'RECONNECTING...';
+  } else {
+    dot.classList.remove('online');
+    dot.style.background = '';
+    dot.style.boxShadow  = '';
+    txt.textContent = 'OFFLINE';
+  }
+}
+  
 function clearListeners() {
   firebaseListeners.forEach(ref => ref.off());
   firebaseListeners = [];
@@ -833,29 +869,14 @@ function listenFirebase() {
     }
   });
 
-  // Device status
+   // Device status
   const deviceRef = db.ref('/device');
   const deviceListener = deviceRef.on('value', snap => {
     if (!snap.exists()) return;
     const d = snap.val();
-    const dot = document.getElementById('statusDot');
-    const txt = document.getElementById('statusText');
-    
-    if (d.online && d.currentTime) {
-      const lastSeen = new Date(d.currentTime.replace(' ', 'T') + '+07:00');
-      const diffSec  = (new Date() - lastSeen) / 1000;
-      if (diffSec < 30) {
-      dot.classList.add('online');
-        txt.textContent = 'ONLINE';
-      } else {
-        dot.classList.remove('online');
-        txt.textContent = 'OFFLINE';
-      }
-    } else {
-      dot.classList.remove('online');
-      txt.textContent = 'OFFLINE';
-    }
-    
+    lastDeviceData = d;
+    checkOnlineStatus();
+
     if (d.ip)   document.getElementById('deviceIP').textContent = d.ip;
     if (d.ssid) document.getElementById('deviceSSID').textContent = d.ssid;
     if (d.rssi) {
