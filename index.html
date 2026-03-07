@@ -415,7 +415,7 @@ main { padding:24px; max-width:1200px; margin:0 auto; }
 }
 
 .time-input {
- background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.4);
   border: 1px solid var(--border);
   border-radius:8px; padding:8px 12px;
   color:var(--text); font-family:'Orbitron',monospace;
@@ -425,12 +425,12 @@ main { padding:24px; max-width:1200px; margin:0 auto; }
   appearance: none;
 }
 
- /* ซ่อน AM/PM spinner */
+/* ซ่อน AM/PM spinner */
 .time-input::-webkit-datetime-edit-ampm-field { display: none; }
 .time-input::-webkit-calendar-picker-indicator {
   filter: invert(1) sepia(1) saturate(5) hue-rotate(175deg);
   cursor: pointer;
-} 
+}
 
 .time-input:focus { border-color:var(--accent); }
 
@@ -776,11 +776,11 @@ function renderRelayGrid() {
           
           <div class="schedule-row">
             <div class="schedule-label" style="color:var(--green)">ON</div>
-            <input type="time" class="time-input" id="on-${i}" value="08:00">
+            <input type="time" class="time-input" id="on-${i}" value="08:00" step="60">
           </div>
           <div class="schedule-row">
             <div class="schedule-label" style="color:var(--red)">OFF</div>
-            <input type="time" class="time-input" id="off-${i}" value="20:00">
+            <input type="time" class="time-input" id="off-${i}" value="20:00" step="60">
           </div>
           
           <button class="btn-save-schedule" onclick="saveSchedule(${i})">💾 SAVE SCHEDULE</button>
@@ -897,13 +897,7 @@ async function saveSchedule(index) {
   const enabled = document.getElementById(`sch-en-${index}`).checked;
   const onVal   = document.getElementById(`on-${index}`).value.split(':');
   const offVal  = document.getElementById(`off-${index}`).value.split(':');
-
-  // ======= เพิ่ม debug log ตรงนี้ =======
-  console.log(`Relay ${index+1} Schedule:`);
-  console.log(`  ON  = ${onVal[0]}:${onVal[1]}`);
-  console.log(`  OFF = ${offVal[0]}:${offVal[1]}`);
-  // =======================================
-
+  
   const dayBtns = document.querySelectorAll(`#days-${index} .day-btn`);
   const days = {};
   dayBtns.forEach((btn, di) => {
@@ -912,18 +906,12 @@ async function saveSchedule(index) {
 
   const schedule = {
     enabled,
-    onHour:  parseInt(onVal[0]),   // ← ต้องได้ตัวเลข ไม่ใช่ string
+    onHour:  parseInt(onVal[0]),
     onMin:   parseInt(onVal[1]),
     offHour: parseInt(offVal[0]),
     offMin:  parseInt(offVal[1]),
     days
   };
-
-  // ตรวจสอบก่อน save
-  if (schedule.onHour === schedule.offHour && schedule.onMin >= schedule.offMin) {
-    showToast('เวลาปิดต้องมากกว่าเวลาเปิด!', 'error');
-    return;
-  }
 
   try {
     await db.ref(`/relays/relay${index+1}/schedule`).set(schedule);
