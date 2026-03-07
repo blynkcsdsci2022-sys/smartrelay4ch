@@ -841,7 +841,7 @@ function listenFirebase() {
     if (d.online && d.currentTime) {
       const lastSeen = new Date(d.currentTime.replace(' ', 'T') + '+07:00');
       const diffSec  = (new Date() - lastSeen) / 1000;
-      if (diffSec < 30) {
+      if (diffSec < 5) {
       dot.classList.add('online');
         txt.textContent = 'ONLINE';
       } else {
