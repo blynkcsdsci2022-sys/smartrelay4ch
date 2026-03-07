@@ -855,38 +855,6 @@ function listenFirebase() {
 
   firebaseListeners.push({ off: () => relaysRef.off('value', stateListener) });
   firebaseListeners.push({ off: () => deviceRef.off('value', deviceListener) });
-
-  // ใน listenFirebase() เพิ่ม logic เช็คเวลา heartbeat
-const deviceRef = db.ref('/device');
-deviceRef.on('value', snap => {
-  if (!snap.exists()) return;
-  const d = snap.val();
-  const dot = document.getElementById('statusDot');
-  const txt = document.getElementById('statusText');
-
-  if (d.online && d.currentTime) {
-    // ✅ เช็คว่า heartbeat ส่งมาไม่เกิน 30 วินาทีที่แล้ว
-    const lastSeen = new Date(d.currentTime.replace(' ', 'T') + '+07:00');
-    const diffSec  = (new Date() - lastSeen) / 1000;
-
-    if (diffSec < 30) {
-      dot.classList.add('online');
-      txt.textContent = 'ONLINE';
-    } else {
-      dot.classList.remove('online');
-      txt.textContent = 'OFFLINE (' + Math.floor(diffSec) + 's ago)';
-    }
-  } else {
-    dot.classList.remove('online');
-    txt.textContent = 'OFFLINE';
-  }
-
-  if (d.ip) document.getElementById('deviceIP').textContent = d.ip;
-  if (d.currentTime) {
-    const t = d.currentTime.split(' ')[1] || d.currentTime;
-    document.getElementById('deviceTime').textContent = t.substring(0,5);
-  }
-});
 }
 
 // ============ RELAY CONTROL ============
