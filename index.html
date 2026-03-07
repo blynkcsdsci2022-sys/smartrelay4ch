@@ -838,9 +838,16 @@ function listenFirebase() {
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
     
-    if (d.online) {
+    if (d.online && d.currentTime) {
+      const lastSeen = new Date(d.currentTime.replace(' ', 'T') + '+07:00');
+      const diffSec  = (new Date() - lastSeen) / 1000;
+      if (diffSec < 30) {
       dot.classList.add('online');
-      txt.textContent = 'ONLINE';
+        txt.textContent = 'ONLINE';
+      } else {
+        dot.classList.remove('online');
+        txt.textContent = 'OFFLINE';
+      }
     } else {
       dot.classList.remove('online');
       txt.textContent = 'OFFLINE';
