@@ -720,10 +720,30 @@ document.getElementById('passwordInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') login();
 });
 
+let lastDeviceData = null; // เก็บข้อมูล device ล่าสุด
+
+function checkOnlineStatus() {
+  if (!lastDeviceData) return;
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+
+  const lastSeen = new Date(lastDeviceData.currentTime.replace(' ', 'T') + '+07:00');
+  const diffSec  = (new Date() - lastSeen) / 1000;
+
+  if (diffSec < 5) {
+    dot.classList.add('online');
+    txt.textContent = 'ONLINE';
+  } else {
+    dot.classList.remove('online');
+    txt.textContent = 'OFFLINE';
+  }
+}  
 // ============ APP INIT ============
 function initApp() {
   renderRelayGrid();
   listenFirebase();
+  // ✅ เพิ่มตรงนี้ — เช็ค online status ทุก 5 วินาที
+  setInterval(checkOnlineStatus, 5000);
 }
 
 function clearListeners() {
@@ -835,6 +855,7 @@ function listenFirebase() {
   const deviceListener = deviceRef.on('value', snap => {
     if (!snap.exists()) return;
     const d = snap.val();
+    lastDeviceData = d; // ✅ เพิ่มบรรทัดนี้
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
     
