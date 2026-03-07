@@ -1,644 +1,925 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESP8266 Relay Control</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <style>
-    :root{
-      --bg:#0a0c10;--surface:#111520;--surface2:#181e2e;--border:#1e2a40;
-      --accent:#00d4ff;--accent2:#7b61ff;--on-color:#00ff88;--off-color:#ff4566;
-      --warn:#ffaa00;--text:#e8eaf0;--text-dim:#5a6a8a;
-      --glow:0 0 20px rgba(0,212,255,.3);--glow-green:0 0 20px rgba(0,255,136,.4);
-    }
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
-    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-    .wrapper{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Relay Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-    /* ── Header ── */
-    header{text-align:center;margin-bottom:28px;}
-    .logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;}
-    .chip-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:var(--glow);}
-    h1{font-size:clamp(20px,4vw,30px);font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-    .subtitle{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-    /* ── Clock Bar ── */
-    .clock-bar{
-      display:flex;align-items:center;justify-content:center;gap:20px;
-      background:var(--surface);border:1px solid var(--border);border-radius:12px;
-      padding:14px 24px;margin-bottom:16px;flex-wrap:wrap;gap:16px;
-    }
-    .clock-block{display:flex;flex-direction:column;align-items:center;gap:3px;}
-    .clock-time{
-      font-family:'JetBrains Mono',monospace;font-size:clamp(26px,5vw,40px);
-      font-weight:600;letter-spacing:4px;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      line-height:1;
-    }
-    .clock-date{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);letter-spacing:1px;}
-    .clock-divider{width:1px;height:40px;background:var(--border);}
-    .clock-esp{display:flex;flex-direction:column;align-items:center;gap:4px;}
-    .clock-esp-label{font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
-    .clock-esp-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);letter-spacing:1px;}
-    .ntp-badge{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:10px;border:1px solid var(--border);color:var(--text-dim);}
-    .ntp-badge.ok{border-color:rgba(0,255,136,.3);color:var(--on-color);background:rgba(0,255,136,.06);}
+<style>
+/* ============ ROOT & THEME ============ */
+:root {
+  --bg-deep:    #060d1a;
+  --bg-panel:   #0a1628;
+  --bg-card:    #0f1f3a;
+  --bg-card2:   #112340;
+  --accent:     #00e5ff;
+  --accent2:    #00b4d8;
+  --green:      #39ff14;
+  --red:        #ff3860;
+  --amber:      #ffb300;
+  --text:       #e0f4ff;
+  --text-dim:   #7ab0cc;
+  --border:     rgba(0,229,255,0.15);
+  --glow:       0 0 20px rgba(0,229,255,0.3);
+  --glow-green: 0 0 20px rgba(57,255,20,0.4);
+  --glow-red:   0 0 20px rgba(255,56,96,0.4);
+}
 
-    /* ── Status Bar ── */
-    .status-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 20px;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
-    .status-item{display:flex;align-items:center;gap:8px;font-size:13px;}
-    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);transition:all .4s;}
-    .status-dot.online{background:var(--on-color);box-shadow:0 0 8px var(--on-color);animation:pulse-dot 2s infinite;}
-    .status-dot.offline{background:var(--off-color);}
-    @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.4;}}
-    .status-label{color:var(--text-dim);font-size:12px;}
-    .status-value{font-family:'JetBrains Mono',monospace;font-size:12px;}
-    .auth-badge{display:flex;align-items:center;gap:6px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);padding:4px 12px;border-radius:20px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent);}
+* { margin:0; padding:0; box-sizing:border-box; }
 
-    /* ── All controls ── */
-    .all-controls{display:flex;gap:10px;margin-bottom:22px;}
-    .btn-all{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-dim);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
-    .btn-all:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.05);}
-    .btn-all.danger:hover{border-color:var(--off-color);color:var(--off-color);background:rgba(255,69,102,.05);}
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(ellipse at 10% 20%, rgba(0,180,216,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(0,229,255,0.04) 0%, transparent 50%);
+}
 
-    /* ── Relay list ── */
-    .relay-list{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;}
-    .relay-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all .3s;position:relative;}
-    .relay-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--border);transition:all .3s;}
-    .relay-card.on{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.025);}
-    .relay-card.on::before{background:var(--on-color);box-shadow:0 0 8px var(--on-color);}
+/* Grid background */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
 
-    .relay-top{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;}
-    .relay-icon{width:42px;height:42px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:all .3s;}
-    .relay-card.on .relay-icon{border-color:var(--on-color);background:rgba(0,255,136,.1);box-shadow:0 0 10px rgba(0,255,136,.25);}
-    .relay-info{flex:1;min-width:0;}
-    .relay-number{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
-    .relay-name-input{background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;width:100%;outline:none;padding:2px 0;transition:border-color .2s;}
-    .relay-name-input:focus{border-bottom-color:var(--accent);}
-    .relay-right{display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
-    .timer-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--border);color:var(--text-dim);white-space:nowrap;}
-    .timer-badge.active{border-color:var(--warn);color:var(--warn);background:rgba(255,170,0,.08);}
+/* ============ LOGIN PAGE ============ */
+#loginPage {
+  position:fixed; inset:0; z-index:100;
+  display:flex; align-items:center; justify-content:center;
+  background: var(--bg-deep);
+  background-image: radial-gradient(ellipse at center, rgba(0,180,216,0.1) 0%, transparent 70%);
+}
 
-    /* Toggle */
-    .toggle{position:relative;width:50px;height:26px;flex-shrink:0;}
-    .toggle input{opacity:0;width:0;height:0;}
-    .slider{position:absolute;cursor:pointer;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:26px;transition:all .3s;}
-    .slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:var(--text-dim);border-radius:50%;transition:all .3s;}
-    input:checked+.slider{background:rgba(0,255,136,.15);border-color:var(--on-color);}
-    input:checked+.slider::before{transform:translateX(24px);background:var(--on-color);box-shadow:0 0 8px var(--on-color);}
-    .state-text{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;min-width:24px;}
-    .relay-card.on .state-text{color:var(--on-color);}
-    .relay-card:not(.on) .state-text{color:var(--text-dim);}
+.login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 48px 40px;
+  width: 100%; max-width: 420px;
+  position:relative; overflow:hidden;
+  box-shadow: 0 0 60px rgba(0,229,255,0.1), inset 0 1px 0 rgba(255,255,255,0.05);
+}
 
-    .btn-expand{background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);padding:4px 10px;font-size:11px;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
-    .btn-expand:hover,.btn-expand.open{border-color:var(--accent2);color:var(--accent2);background:rgba(123,97,255,.08);}
+.login-box::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
 
-    /* ── Schedule Panel ── */
-    .schedule-panel{border-top:1px solid var(--border);max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s ease;padding:0 18px;}
-    .schedule-panel.open{max-height:440px;padding:16px 18px 18px;}
-    .sched-title{font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
+.login-logo {
+  text-align:center; margin-bottom:36px;
+}
 
-    .sched-slots{display:flex;flex-direction:column;gap:10px;}
-    .sched-slot{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;transition:border-color .2s;}
-    .sched-slot.enabled{border-color:rgba(255,170,0,.3);}
-    .slot-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);min-width:52px;}
+.login-logo .icon-wrap {
+  width:72px; height:72px; margin:0 auto 16px;
+  background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,180,216,0.05));
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: var(--glow);
+}
 
-    /* Mini toggle */
-    .mini-toggle{position:relative;width:34px;height:19px;flex-shrink:0;}
-    .mini-toggle input{opacity:0;width:0;height:0;}
-    .mini-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface);border:1px solid var(--border);border-radius:19px;transition:all .3s;}
-    .mini-slider::before{content:'';position:absolute;height:13px;width:13px;left:2px;bottom:2px;background:var(--text-dim);border-radius:50%;transition:all .3s;}
-    .mini-toggle input:checked+.mini-slider{background:rgba(255,170,0,.15);border-color:var(--warn);}
-    .mini-toggle input:checked+.mini-slider::before{transform:translateX(15px);background:var(--warn);}
-    .slot-en-lbl{font-size:11px;color:var(--text-dim);min-width:44px;}
-    .slot-en-lbl.on{color:var(--warn);}
+.login-logo .icon-wrap svg { width:36px; height:36px; }
 
-    .time-pair{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;}
-    .time-group{display:flex;align-items:center;gap:6px;}
-    .time-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;}
-    .time-tag.on-tag{background:rgba(0,255,136,.1);color:var(--on-color);border:1px solid rgba(0,255,136,.2);}
-    .time-tag.off-tag{background:rgba(255,69,102,.1);color:var(--off-color);border:1px solid rgba(255,69,102,.2);}
-    .time-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:5px 8px;outline:none;width:86px;transition:border-color .2s;}
-    .time-input:focus{border-color:var(--accent);}
+.login-logo h1 {
+  font-family:'Orbitron', monospace;
+  font-size:22px; font-weight:900;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(0,229,255,0.5);
+  letter-spacing:3px;
+}
 
-    .sched-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;}
-    .sched-note{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
-    .sched-note .dot-esp{width:6px;height:6px;border-radius:50%;background:var(--on-color);box-shadow:0 0 5px var(--on-color);display:inline-block;}
-    .btn-save-sched{padding:7px 18px;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:7px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
-    .btn-save-sched:hover{opacity:.85;transform:translateY(-1px);}
+.login-logo p { color: var(--text-dim); font-size:13px; letter-spacing:1px; margin-top:4px; }
 
-    /* ── Login Panel ── */
-    .config-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;}
-    .config-title{font-size:13px;font-weight:600;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:18px;}
-    .input-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
-    @media(max-width:480px){.input-row{grid-template-columns:1fr;}}
-    .input-group{display:flex;flex-direction:column;gap:6px;}
-    .input-group label{font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
-    .input-group input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;width:100%;}
-    .input-group input:focus{border-color:var(--accent);}
-    .btn-save{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#000;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
-    .btn-save:hover{transform:translateY(-1px);box-shadow:var(--glow);}
+.form-group { margin-bottom:20px; }
 
-    /* ── Log ── */
-    .log-title{padding:0 4px 8px;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:1px;}
-    .log-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;height:110px;overflow-y:auto;}
-    .log-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);}
-    .log-line.ok{color:var(--on-color);}
-    .log-line.err{color:var(--off-color);}
-    .log-line.info{color:var(--accent);}
-    .log-line.warn{color:var(--warn);}
+.form-group label {
+  display:block; font-size:12px; font-weight:600;
+  color: var(--text-dim); letter-spacing:2px;
+  text-transform:uppercase; margin-bottom:8px;
+}
 
-    /* ── Toast ── */
-    .toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 18px;font-size:13px;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999;}
-    .toast.show{opacity:1;transform:translateY(0);}
-    .toast.success{border-color:var(--on-color);color:var(--on-color);}
-    .toast.error{border-color:var(--off-color);color:var(--off-color);}
-    .toast.warn{border-color:var(--warn);color:var(--warn);}
+.form-group input {
+  width:100%; padding:14px 18px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius:8px; outline:none;
+  color: var(--text); font-family:'Rajdhani',sans-serif; font-size:16px;
+  transition: all 0.3s;
+}
 
-    ::-webkit-scrollbar{width:4px;}
-    ::-webkit-scrollbar-track{background:transparent;}
-    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-  </style>
+.form-group input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+}
+
+.btn-login {
+  width:100%; padding:16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border:none; border-radius:8px; cursor:pointer;
+  font-family:'Orbitron',monospace; font-size:14px; font-weight:700;
+  color: var(--bg-deep); letter-spacing:3px;
+  transition: all 0.3s; text-transform:uppercase;
+}
+
+.btn-login:hover { box-shadow: var(--glow); transform:translateY(-1px); }
+.btn-login:active { transform:translateY(0); }
+
+.login-error {
+  background: rgba(255,56,96,0.1);
+  border: 1px solid rgba(255,56,96,0.3);
+  border-radius:8px; padding:12px 16px;
+  color: var(--red); font-size:14px;
+  margin-top:16px; display:none; text-align:center;
+}
+
+/* ============ MAIN APP ============ */
+#app { display:none; min-height:100vh; position:relative; z-index:1; }
+
+/* Header */
+header {
+  background: rgba(10,22,40,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  position: sticky; top:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  height: 64px;
+}
+
+.header-brand {
+  display:flex; align-items:center; gap:12px;
+}
+
+.header-brand .logo-icon {
+  width:38px; height:38px;
+  background: linear-gradient(135deg, rgba(0,229,255,0.2), rgba(0,180,216,0.05));
+  border: 1px solid rgba(0,229,255,0.4);
+  border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.header-brand h1 {
+  font-family:'Orbitron',monospace;
+  font-size:16px; font-weight:900;
+  color: var(--accent); letter-spacing:3px;
+}
+
+.header-right { display:flex; align-items:center; gap:16px; }
+
+.status-badge {
+  display:flex; align-items:center; gap:8px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius:20px; padding:6px 14px;
+  font-size:12px; font-weight:600; letter-spacing:1px;
+}
+
+.status-dot {
+  width:8px; height:8px; border-radius:50%;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+  transition: all 0.5s;
+}
+.status-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse-dot 2s infinite; }
+
+@keyframes pulse-dot {
+  0%,100% { opacity:1; } 50% { opacity:0.5; }
+}
+
+.btn-logout {
+  padding:8px 18px;
+  background:transparent;
+  border: 1px solid rgba(255,56,96,0.4);
+  border-radius:8px; cursor:pointer;
+  color: var(--red); font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:600; letter-spacing:1px;
+  transition: all 0.3s;
+}
+.btn-logout:hover { background:rgba(255,56,96,0.1); border-color:var(--red); }
+
+/* Main content */
+main { padding:24px; max-width:1200px; margin:0 auto; }
+
+/* Clock bar */
+.clock-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius:12px; padding:16px 24px;
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+.clock-time {
+  font-family:'Orbitron',monospace;
+  font-size:32px; font-weight:900;
+  color: var(--accent);
+  text-shadow: 0 0 30px rgba(0,229,255,0.5);
+  letter-spacing:4px;
+}
+
+.clock-date {
+  font-size:14px; color: var(--text-dim);
+  letter-spacing:2px; text-align:right;
+}
+
+.clock-date .date-line { font-size:18px; color:var(--text); font-weight:600; }
+
+/* Device info */
+.device-info {
+  display:flex; gap:12px; align-items:center;
+}
+
+.info-chip {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius:6px; padding:4px 12px;
+  font-size:12px; color:var(--text-dim); letter-spacing:1px;
+}
+
+.info-chip span { color:var(--accent); }
+
+/* Section title */
+.section-title {
+  font-family:'Orbitron',monospace;
+  font-size:11px; font-weight:700;
+  color:var(--text-dim); letter-spacing:4px;
+  text-transform:uppercase; margin-bottom:16px;
+  display:flex; align-items:center; gap:12px;
+}
+
+.section-title::after {
+  content:''; flex:1; height:1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* Relay Grid */
+.relay-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:20px; margin-bottom:32px;
+}
+
+/* Relay Card */
+.relay-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius:16px; overflow:hidden;
+  transition: all 0.3s;
+  position:relative;
+}
+
+.relay-card::before {
+  content:''; position:absolute;
+  top:0; left:0; right:0; height:3px;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  opacity:0; transition:opacity 0.3s;
+}
+
+.relay-card.active { border-color: rgba(57,255,20,0.3); }
+.relay-card.active::before { opacity:1; background:linear-gradient(90deg,#1de900,var(--green)); }
+
+.relay-card:hover { transform:translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+
+.relay-header {
+  padding:20px 20px 16px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+
+.relay-icon {
+  width:48px; height:48px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  transition: all 0.3s;
+}
+
+.relay-card.active .relay-icon {
+  border-color: rgba(57,255,20,0.4);
+  background: rgba(57,255,20,0.08);
+  box-shadow: var(--glow-green);
+}
+
+.relay-icon svg { width:24px; height:24px; color:var(--text-dim); transition:all 0.3s; }
+.relay-card.active .relay-icon svg { color:var(--green); }
+
+.relay-info { flex:1; margin-left:16px; }
+
+.relay-name {
+  font-size:17px; font-weight:700; color:var(--text);
+  margin-bottom:4px;
+}
+
+.relay-status {
+  font-size:12px; letter-spacing:2px; font-weight:600;
+  color:var(--red); text-transform:uppercase;
+  transition:color 0.3s;
+}
+
+.relay-card.active .relay-status { color:var(--green); }
+
+/* Toggle Switch */
+.toggle-wrap {
+  display:flex; align-items:center;
+}
+
+.toggle {
+  position:relative; width:60px; height:30px; cursor:pointer;
+}
+
+.toggle input { opacity:0; width:0; height:0; }
+
+.toggle-track {
+  position:absolute; inset:0;
+  background: rgba(255,56,96,0.2);
+  border: 1px solid rgba(255,56,96,0.4);
+  border-radius:30px;
+  transition: all 0.4s;
+  overflow:hidden;
+}
+
+.toggle-track::before {
+  content:''; position:absolute;
+  top:3px; left:3px;
+  width:22px; height:22px;
+  background: var(--red); border-radius:50%;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 10px rgba(255,56,96,0.5);
+}
+
+.toggle input:checked ~ .toggle-track {
+  background: rgba(57,255,20,0.2);
+  border-color: rgba(57,255,20,0.5);
+}
+
+.toggle input:checked ~ .toggle-track::before {
+  transform: translateX(30px);
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(57,255,20,0.6);
+}
+
+/* Schedule Section */
+.schedule-section {
+  padding:0 20px 20px;
+  border-top: 1px solid var(--border);
+  margin-top:0;
+}
+
+.schedule-toggle-btn {
+  width:100%;
+  padding:12px 20px;
+  background:transparent; border:none; cursor:pointer;
+  color:var(--text-dim); font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:600; letter-spacing:2px;
+  display:flex; align-items:center; justify-content:space-between;
+  transition:color 0.3s;
+  margin:0 -20px; width:calc(100% + 0px);
+}
+
+.schedule-toggle-btn:hover { color:var(--accent); }
+
+.schedule-toggle-btn .arrow {
+  width:20px; height:20px; transition:transform 0.3s;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.schedule-toggle-btn.open .arrow { transform:rotate(180deg); }
+
+.schedule-body {
+  display:none; padding-top:16px;
+}
+
+.schedule-body.open { display:block; }
+
+.schedule-row {
+  display:flex; align-items:center; gap:12px; margin-bottom:12px;
+}
+
+.schedule-label {
+  font-size:12px; letter-spacing:1px; color:var(--text-dim);
+  min-width:40px;
+}
+
+.time-input {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius:8px; padding:8px 12px;
+  color:var(--text); font-family:'Orbitron',monospace;
+  font-size:14px; width:110px; outline:none;
+  transition:border-color 0.3s;
+}
+
+.time-input:focus { border-color:var(--accent); }
+
+.time-sep { color:var(--text-dim); font-size:18px; }
+
+/* Days checkboxes */
+.days-row {
+  display:flex; gap:6px; margin-bottom:14px;
+}
+
+.day-btn {
+  flex:1; padding:6px 2px;
+  background:rgba(0,0,0,0.3);
+  border:1px solid var(--border);
+  border-radius:6px; cursor:pointer;
+  color:var(--text-dim); font-size:11px;
+  font-weight:600; letter-spacing:1px;
+  text-align:center; transition:all 0.2s;
+  user-select:none;
+}
+
+.day-btn.selected {
+  background:rgba(0,229,255,0.15);
+  border-color:rgba(0,229,255,0.4);
+  color:var(--accent);
+}
+
+.schedule-enable {
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+}
+
+.schedule-enable label {
+  font-size:12px; color:var(--text-dim); letter-spacing:1px;
+  cursor:pointer;
+}
+
+.btn-save-schedule {
+  width:100%; padding:10px;
+  background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,180,216,0.05));
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius:8px; cursor:pointer;
+  color:var(--accent); font-family:'Rajdhani',sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:2px;
+  transition:all 0.3s;
+}
+
+.btn-save-schedule:hover {
+  background: rgba(0,229,255,0.2);
+  box-shadow: var(--glow);
+}
+
+/* Toast */
+.toast {
+  position:fixed; bottom:24px; right:24px; z-index:200;
+  background:var(--bg-card2);
+  border:1px solid var(--border);
+  border-radius:10px; padding:14px 20px;
+  display:flex; align-items:center; gap:12px;
+  font-size:14px; font-weight:600;
+  transform:translateX(120%); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  min-width:240px;
+}
+
+.toast.show { transform:translateX(0); }
+.toast.success { border-color:rgba(57,255,20,0.3); color:var(--green); }
+.toast.error { border-color:rgba(255,56,96,0.3); color:var(--red); }
+
+/* Responsive */
+@media(max-width:600px) {
+  .clock-time { font-size:24px; }
+  .clock-bar { flex-direction:column; gap:12px; text-align:center; }
+  .header-brand h1 { font-size:13px; }
+  .relay-grid { grid-template-columns:1fr; }
+  main { padding:16px; }
+}
+
+/* Checkbox custom */
+input[type=checkbox].sch-enable {
+  width:18px; height:18px; accent-color:var(--accent); cursor:pointer;
+}
+
+/* Loading spinner */
+.spinner {
+  display:inline-block; width:16px; height:16px;
+  border:2px solid rgba(0,229,255,0.2);
+  border-top-color:var(--accent);
+  border-radius:50%; animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Relay number badge */
+.relay-num {
+  position:absolute; top:12px; right:12px;
+  font-family:'Orbitron',monospace; font-size:10px;
+  color:var(--text-dim); letter-spacing:2px;
+  opacity:0.5;
+}
+</style>
 </head>
 <body>
-<div class="wrapper">
 
-  <!-- Header -->
-  <header>
-    <div class="logo-row">
-      <div class="chip-icon">⚡</div>
-      <h1>Relay Control Panel</h1>
-    </div>
-    <p class="subtitle">Project By Jeerawat S.</p>
-  </header>
-
-  <!-- Clock Bar -->
-  <div class="clock-bar">
-    <div class="clock-block">
-      <div class="clock-time" id="clockTime">--:--:--</div>
-      <div class="clock-date" id="clockDate">กำลังโหลด...</div>
-    </div>
-    <div class="clock-divider"></div>
-    <div class="clock-esp">
-      <span class="clock-esp-label">⏱ ESP8266 Time</span>
-      <span class="clock-esp-val" id="espTime">–</span>
-      <span class="ntp-badge" id="ntpBadge">NTP –</span>
-    </div>
-  </div>
-
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <div class="status-item">
-      <div class="status-dot" id="deviceDot"></div>
-      <span class="status-label">Device:</span>
-      <span class="status-value" id="deviceStatus">ออฟไลน์</span>
-    </div>
-    <div class="status-item">
-      <span class="status-label">IP:</span>
-      <span class="status-value" id="deviceIP">–</span>
-    </div>
-    <div class="status-item">
-      <span class="status-label">Firebase:</span>
-      <div class="status-dot" id="fbDot"></div>
-      <span class="status-value" id="fbStatus">ไม่ได้เชื่อมต่อ</span>
-    </div>
-    <div class="auth-badge" id="authBadge">🔒 ยังไม่ login</div>
-  </div>
-
-  <!-- Control Section -->
-  <div id="controlSection" style="display:none;">
-    <div class="all-controls">
-      <button class="btn-all" onclick="setAllRelays(true)">⚡ เปิดทั้งหมด</button>
-      <button class="btn-all danger" onclick="setAllRelays(false)">⭕ ปิดทั้งหมด</button>
-    </div>
-    <div class="relay-list" id="relayList"></div>
-  </div>
-
-  <!-- Login Panel -->
-  <div id="configPanel" class="config-panel">
-    <div class="config-title">🔐 เข้าสู่ระบบ</div>
-    <div class="input-row">
-      <div class="input-group">
-        <label>Email</label>
-        <input type="email" id="cfgEmail" placeholder="user@example.com" />
+<!-- ====== LOGIN PAGE ====== -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.5">
+          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
       </div>
-      <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="cfgPass" placeholder="รหัสผ่าน"
-          onkeydown="if(event.key==='Enter')connectFirebase()" />
-      </div>
+      <h1>RELAY CTRL</h1>
+      <p>IoT CONTROL PANEL</p>
     </div>
-    <button class="btn-save" onclick="connectFirebase()">🔗 เข้าสู่ระบบ</button>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="emailInput" placeholder="user@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="login()">SIGN IN</button>
+    <div class="login-error" id="loginError"></div>
   </div>
-
-  <div class="log-title">📋 Activity Log</div>
-  <div class="log-box" id="logBox"></div>
 </div>
 
+<!-- ====== MAIN APP ====== -->
+<div id="app">
+  <header>
+    <div class="header-brand">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#00e5ff" stroke-width="1.5">
+          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <h1>RELAY CTRL</h1>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">OFFLINE</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">LOGOUT</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Clock Bar -->
+    <div class="clock-bar">
+      <div>
+        <div class="clock-time" id="clockTime">--:--:--</div>
+        <div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;margin-top:4px">LOCAL TIME</div>
+      </div>
+      <div style="text-align:center">
+        <div class="device-info">
+          <div class="info-chip">IP: <span id="deviceIP">-</span></div>
+          <div class="info-chip">ESP: <span id="deviceTime">--:--</span></div>
+        </div>
+      </div>
+      <div class="clock-date">
+        <div class="date-line" id="clockDate">-- --- ----</div>
+        <div id="clockDay" style="letter-spacing:2px;font-size:12px;margin-top:4px">---</div>
+      </div>
+    </div>
+
+    <!-- Relay Grid -->
+    <div class="section-title">RELAY CHANNELS</div>
+    <div class="relay-grid" id="relayGrid">
+      <!-- Generated by JS -->
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── ✏️ แก้ค่าตรงนี้เพียงครั้งเดียว ──────────────────────────
-const FB_API_KEY = 'AIzaSyBjB7vWS3I3YY9GWOh7bvQBp4gyQHJ92iw';
-const FB_DB_URL  = 'https://smartrelay4ch-default-rtdb.asia-southeast1.firebasedatabase.app';
-// ────────────────────────────────────────────────────────────
+// ============================================================
+//  FIREBASE CONFIG — แก้ตรงนี้ให้ตรงกับ project ของคุณ
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBjB7vWS3I3YY9GWOh7bvQBp4gyQHJ92iw",
+  authDomain: "smartrelay4ch.firebaseapp.com",
+  databaseURL: "https://smartrelay4ch-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smartrelay4ch",
+  storageBucket: "smartrelay4ch.firebasestorage.app",
+  messagingSenderId: "708991120063",
+  appId: "1:708991120063:web:407e2d52ebcbaa640e8c0a"
+};
+// ============================================================
 
-const RELAY_ICONS  = ['💡','❄️','🔌','🔧'];
-const RELAY_LABELS = ['Relay 1','Relay 2','Relay 3','Relay 4'];
-const TH_DAYS = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
-const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
 
-let db = null, isConnected = false, scheduleTimer = null;
+const RELAY_NAMES = ["Relay 1", "Relay 2", "Relay 3", "Relay 4"];
+const RELAY_ICONS = [
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`,
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>`
+];
+
+const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
 let relayStates = [false,false,false,false];
-let relayLabels = [...RELAY_LABELS];
-let schedules = Array.from({length:4}, () => ({
-  s1:{en:false,on:'06:00',off:'08:00'},
-  s2:{en:false,on:'18:00',off:'20:00'}
+let scheduleData = Array(4).fill(null).map(() => ({
+  enabled:false, onHour:8, onMin:0, offHour:20, offMin:0,
+  days:[true,true,true,true,true,true,true]
 }));
+let scheduleOpenState = [false,false,false,false];
+let firebaseListeners = [];
 
-// ════════════════ CLOCK ════════════════════════════════════
-
-function startClock() {
-  updateClock();
-  setInterval(updateClock, 1000);
-}
-
+// ============ CLOCK ============
 function updateClock() {
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2,'0');
-  const mm = String(now.getMinutes()).padStart(2,'0');
-  const ss = String(now.getSeconds()).padStart(2,'0');
-  document.getElementById('clockTime').textContent = `${hh}:${mm}:${ss}`;
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clockTime').textContent = `${h}:${m}:${s}`;
 
-  const day = TH_DAYS[now.getDay()];
-  const d   = now.getDate();
-  const mon = TH_MONTHS[now.getMonth()];
-  const yr  = now.getFullYear() + 543;
-  document.getElementById('clockDate').textContent = `${day} ${d} ${mon} ${yr}`;
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('clockDate').textContent =
+    `${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  document.getElementById('clockDay').textContent = dayNames[now.getDay()].toUpperCase();
 }
+setInterval(updateClock, 1000);
+updateClock();
 
-// ════════════════ RELAY CARDS ══════════════════════════════
-
-function buildRelayList() {
-  const list = document.getElementById('relayList');
-  list.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
-    const card = document.createElement('div');
-    card.className = 'relay-card' + (relayStates[i] ? ' on' : '');
-    card.id = 'card'+i;
-    card.innerHTML = `
-      <div class="relay-top" onclick="handleCardClick(event,${i})">
-        <div class="relay-icon" id="icon${i}">${RELAY_ICONS[i]}</div>
-        <div class="relay-info">
-          <div class="relay-number">CH-0${i+1}</div>
-          <input class="relay-name-input" id="label${i}" value="${relayLabels[i]}"
-            onclick="event.stopPropagation()" onchange="saveLabel(${i},this.value)" />
-        </div>
-        <div class="relay-right">
-          <span class="timer-badge" id="timerBadge${i}">⏱ ไม่มีกำหนด</span>
-          <button class="btn-expand" id="expandBtn${i}"
-            onclick="event.stopPropagation();toggleSchedule(${i})">⏰ ตั้งเวลา</button>
-          <label class="toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="toggle${i}" ${relayStates[i]?'checked':''}
-              onchange="toggleRelay(${i},this.checked)" />
-            <span class="slider"></span>
-          </label>
-          <span class="state-text" id="stateText${i}">${relayStates[i]?'ON':'OFF'}</span>
-        </div>
-      </div>
-      <div class="schedule-panel" id="schedPanel${i}">
-        <div class="sched-title">⏰ ตั้งเวลา — Relay ${i+1}
-          <span style="font-size:9px;color:var(--on-color);margin-left:8px;">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--on-color);box-shadow:0 0 5px var(--on-color);"></span>
-            ทำงานบน ESP8266 ตลอด 24 ชม.
-          </span>
-        </div>
-        <div class="sched-slots">
-          ${buildSlotHTML(i,0,'ช่วงที่ 1')}
-          ${buildSlotHTML(i,1,'ช่วงที่ 2')}
-        </div>
-        <div class="sched-footer">
-          <span class="sched-note">
-            <span class="dot-esp"></span>
-            ESP8266 ใช้ NTP sync เวลาจาก internet อัตโนมัติ
-          </span>
-          <button class="btn-save-sched" onclick="saveSchedule(${i})">💾 บันทึก</button>
-        </div>
-      </div>`;
-    list.appendChild(card);
-  }
-  for (let i=0;i<4;i++) refreshSlotUI(i);
-}
-
-function buildSlotHTML(ri, si, label) {
-  return `
-    <div class="sched-slot" id="slot_${ri}_${si}">
-      <span class="slot-label">${label}</span>
-      <label class="mini-toggle">
-        <input type="checkbox" id="slotEn_${ri}_${si}" onchange="onSlotEnableChange(${ri},${si})">
-        <span class="mini-slider"></span>
-      </label>
-      <span class="slot-en-lbl" id="slotEnLbl_${ri}_${si}">ปิดใช้</span>
-      <div class="time-pair">
-        <div class="time-group">
-          <span class="time-tag on-tag">เปิด</span>
-          <input class="time-input" type="time" id="slotOn_${ri}_${si}" value="06:00" />
-        </div>
-        <div class="time-group">
-          <span class="time-tag off-tag">ปิด</span>
-          <input class="time-input" type="time" id="slotOff_${ri}_${si}" value="08:00" />
-        </div>
-      </div>
-    </div>`;
-}
-
-function refreshSlotUI(ri) {
-  ['s1','s2'].forEach((sk,si) => {
-    const s   = schedules[ri][sk];
-    const enEl  = document.getElementById(`slotEn_${ri}_${si}`);
-    const onEl  = document.getElementById(`slotOn_${ri}_${si}`);
-    const offEl = document.getElementById(`slotOff_${ri}_${si}`);
-    const lbl   = document.getElementById(`slotEnLbl_${ri}_${si}`);
-    const slot  = document.getElementById(`slot_${ri}_${si}`);
-    if (!enEl) return;
-    enEl.checked = s.en;
-    onEl.value   = s.on;
-    offEl.value  = s.off;
-    lbl.textContent = s.en ? 'เปิดใช้' : 'ปิดใช้';
-    lbl.className   = 'slot-en-lbl'+(s.en?' on':'');
-    slot.className  = 'sched-slot'+(s.en?' enabled':'');
-  });
-  updateTimerBadge(ri);
-}
-
-function onSlotEnableChange(ri, si) {
-  const sk = si===0?'s1':'s2';
-  const en = document.getElementById(`slotEn_${ri}_${si}`).checked;
-  schedules[ri][sk].en = en;
-  const lbl  = document.getElementById(`slotEnLbl_${ri}_${si}`);
-  const slot = document.getElementById(`slot_${ri}_${si}`);
-  lbl.textContent = en?'เปิดใช้':'ปิดใช้';
-  lbl.className   = 'slot-en-lbl'+(en?' on':'');
-  slot.className  = 'sched-slot'+(en?' enabled':'');
-}
-
-function updateTimerBadge(ri) {
-  const badge = document.getElementById(`timerBadge${ri}`);
-  if (!badge) return;
-  const active = schedules[ri].s1.en || schedules[ri].s2.en;
-  if (!active) {
-    badge.textContent = '⏱ ไม่มีกำหนด';
-    badge.className = 'timer-badge';
+// ============ AUTH ============
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
   } else {
-    const parts = [];
-    if (schedules[ri].s1.en) parts.push(schedules[ri].s1.on+'–'+schedules[ri].s1.off);
-    if (schedules[ri].s2.en) parts.push(schedules[ri].s2.on+'–'+schedules[ri].s2.off);
-    badge.textContent = '⏰ '+parts.join(' / ');
-    badge.className = 'timer-badge active';
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    clearListeners();
   }
-}
+});
 
-function toggleSchedule(ri) {
-  const panel = document.getElementById('schedPanel'+ri);
-  const btn   = document.getElementById('expandBtn'+ri);
-  const wasOpen = panel.classList.contains('open');
-  document.querySelectorAll('.schedule-panel').forEach(p=>p.classList.remove('open'));
-  document.querySelectorAll('.btn-expand').forEach(b=>{b.classList.remove('open');b.textContent='⏰ ตั้งเวลา';});
-  if (!wasOpen) { panel.classList.add('open'); btn.classList.add('open'); btn.textContent='✕ ปิด'; }
-}
-
-// ════════════════ SCHEDULE SAVE ════════════════════════════
-
-function saveSchedule(ri) {
-  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
-  ['s1','s2'].forEach((sk,si) => {
-    schedules[ri][sk] = {
-      en:  document.getElementById(`slotEn_${ri}_${si}`).checked,
-      on:  document.getElementById(`slotOn_${ri}_${si}`).value,
-      off: document.getElementById(`slotOff_${ri}_${si}`).value
-    };
-  });
-  db.ref(`/schedules/relay${ri+1}`).set(schedules[ri])
-    .then(() => {
-      updateTimerBadge(ri);
-      addLog(`💾 บันทึกตารางเวลา Relay ${ri+1} → ESP8266 จะรับทันที`,'warn');
-      showToast(`✅ บันทึกตาราง Relay ${ri+1}`,'success');
-    })
-    .catch(err => addLog('Error: '+err.message,'err'));
-}
-
-// ════════════════ RELAY CONTROL ════════════════════════════
-
-function handleCardClick(e, ri) {
-  const t = document.getElementById('toggle'+ri);
-  t.checked = !t.checked;
-  toggleRelay(ri, t.checked);
-}
-
-function updateRelayUI(idx, state) {
-  relayStates[idx] = state;
-  const card = document.getElementById('card'+idx);
-  const t    = document.getElementById('toggle'+idx);
-  const st   = document.getElementById('stateText'+idx);
-  if (!card) return;
-  card.className = 'relay-card'+(state?' on':'');
-  t.checked = state;
-  st.textContent = state?'ON':'OFF';
-}
-
-function toggleRelay(idx, state) {
-  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
-  db.ref(`/relays/relay${idx+1}`).set(state)
-    .then(() => {
-      updateRelayUI(idx, state);
-      addLog(`Relay ${idx+1} → ${state?'ON':'OFF'}`, state?'ok':'');
-      showToast(`Relay ${idx+1} ${state?'✅ เปิด':'⭕ ปิด'}`, state?'success':'');
-    })
-    .catch(err => { addLog('Error: '+err.message,'err'); showToast('❌ '+err.message,'error'); });
-}
-
-function setAllRelays(state) {
-  if (!isConnected) { showToast('❌ ยังไม่ได้เชื่อมต่อ Firebase','error'); return; }
-  const upd = {};
-  for (let i=1;i<=4;i++) upd['relay'+i]=state;
-  db.ref('/relays').update(upd)
-    .then(() => {
-      for (let i=0;i<4;i++) updateRelayUI(i,state);
-      addLog(`ทุก Relay → ${state?'ON':'OFF'}`, state?'ok':'');
-      showToast(state?'✅ เปิดทั้งหมดแล้ว':'⭕ ปิดทั้งหมดแล้ว', state?'success':'');
-    }).catch(err=>addLog('Error: '+err.message,'err'));
-}
-
-function saveLabel(idx, val) {
-  relayLabels[idx]=val;
-  if (isConnected) db.ref(`/labels/relay${idx+1}`).set(val);
-}
-
-// ════════════════ FIREBASE ═════════════════════════════════
-
-function loadConfig() {
+async function login() {
+  const email = document.getElementById('emailInput').value.trim();
+  const pass  = document.getElementById('passwordInput').value;
+  const err   = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+  
+  if (!email || !pass) {
+    showLoginError('กรุณากรอก Email และ Password');
+    return;
+  }
+  
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  err.style.display = 'none';
+  
   try {
-    const s = JSON.parse(localStorage.getItem('fbConfig')||'{}');
-    if (s.email) document.getElementById('cfgEmail').value = s.email;
-  } catch {}
-}
-
-function buildFirebaseConfig() {
-  const host = new URL(FB_DB_URL).hostname;
-  return {
-    apiKey: FB_API_KEY,
-    databaseURL: FB_DB_URL,
-    authDomain: host.replace('-default-rtdb','').replace(/\.firebasedatabase\.app$/,'') + '.firebaseapp.com',
-    projectId:  host.replace(/-default-rtdb.*/,'')
-  };
-}
-
-function connectFirebase() {
-  const email = document.getElementById('cfgEmail').value.trim();
-  const pass  = document.getElementById('cfgPass').value;
-  if (!email||!pass) { showToast('❌ กรุณากรอก Email และ Password','error'); return; }
-  localStorage.setItem('fbConfig', JSON.stringify({email}));
-  addLog('กำลัง Login...','info');
-  try {
-    const cfg = buildFirebaseConfig();
-    if (firebase.apps.length>0) firebase.app().delete().then(()=>initApp(cfg,email,pass));
-    else initApp(cfg,email,pass);
+    await auth.signInWithEmailAndPassword(email, pass);
   } catch(e) {
-    addLog('Config Error: '+e.message,'err');
-    showToast('❌ DB URL ในโค้ดไม่ถูกต้อง','error');
+    let msg = 'เข้าสู่ระบบไม่สำเร็จ';
+    if (e.code === 'auth/user-not-found') msg = 'ไม่พบบัญชีนี้';
+    else if (e.code === 'auth/wrong-password') msg = 'รหัสผ่านไม่ถูกต้อง';
+    else if (e.code === 'auth/invalid-email') msg = 'Email ไม่ถูกต้อง';
+    else if (e.code === 'auth/too-many-requests') msg = 'ลองใหม่ภายหลัง (บัญชีถูกล็อคชั่วคราว)';
+    showLoginError(msg);
+    btn.innerHTML = 'SIGN IN';
+    btn.disabled = false;
   }
 }
 
-function initApp(cfg, email, pass) {
-  firebase.initializeApp(cfg);
-  db = firebase.database();
-  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-    .then(()=>firebase.auth().signInWithEmailAndPassword(email,pass))
-    .then(uc=>onLoginSuccess(uc.user.email))
-    .catch(err=>{ addLog('Auth Error: '+err.message,'err'); showToast('❌ Login ไม่สำเร็จ: '+err.code,'error'); isConnected=false; });
+function showLoginError(msg) {
+  const err = document.getElementById('loginError');
+  err.textContent = msg;
+  err.style.display = 'block';
 }
 
-function onLoginSuccess(email) {
-  isConnected=true;
-  db=db||firebase.database();
-  showControlPanel();
-  document.getElementById('fbDot').className='status-dot online';
-  document.getElementById('fbStatus').textContent='เชื่อมต่อแล้ว';
-  document.getElementById('authBadge').innerHTML=
-    `✅ ${email} <span onclick="logout()" style="cursor:pointer;margin-left:8px;color:var(--off-color);font-size:11px;" title="Logout">✕ ออก</span>`;
-  addLog('เชื่อมต่อ Firebase สำเร็จ! ('+email+')','ok');
-  showToast('✅ เชื่อมต่อสำเร็จ!','success');
-  startListeners();
+async function logout() {
+  await auth.signOut();
+  showToast('ออกจากระบบแล้ว', 'success');
 }
 
-function logout() {
-  if (!confirm('ต้องการออกจากระบบ?')) return;
-  firebase.auth().signOut().then(()=>{
-    isConnected=false;
-    showConfigPanel();
-    document.getElementById('fbDot').className='status-dot';
-    document.getElementById('fbStatus').textContent='ไม่ได้เชื่อมต่อ';
-    document.getElementById('authBadge').innerHTML='🔒 ยังไม่ login';
-    addLog('Logout แล้ว','info');
-    showToast('👋 Logout สำเร็จ','');
-  });
+// Press Enter to login
+document.getElementById('passwordInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+
+// ============ APP INIT ============
+function initApp() {
+  renderRelayGrid();
+  listenFirebase();
 }
 
-function showControlPanel(){ document.getElementById('controlSection').style.display=''; document.getElementById('configPanel').style.display='none'; }
-function showConfigPanel(){ document.getElementById('controlSection').style.display='none'; document.getElementById('configPanel').style.display=''; }
+function clearListeners() {
+  firebaseListeners.forEach(ref => ref.off());
+  firebaseListeners = [];
+}
 
-// ════════════════ LISTENERS ════════════════════════════════
+// ============ RENDER GRID ============
+function renderRelayGrid() {
+  const grid = document.getElementById('relayGrid');
+  grid.innerHTML = RELAY_NAMES.map((name, i) => `
+    <div class="relay-card" id="card-${i}">
+      <div class="relay-num">CH${i+1}</div>
+      <div class="relay-header">
+        <div class="relay-icon" id="icon-${i}">${RELAY_ICONS[i]}</div>
+        <div class="relay-info">
+          <div class="relay-name" contenteditable="true" id="rname-${i}">${name}</div>
+          <div class="relay-status" id="status-${i}">OFFLINE</div>
+        </div>
+        <div class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" id="toggle-${i}" onchange="toggleRelay(${i}, this.checked)">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+      </div>
+      
+      <div class="schedule-section">
+        <button class="schedule-toggle-btn" id="schbtn-${i}" onclick="toggleSchedule(${i})">
+          <span>⏰ SCHEDULE</span>
+          <span class="arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </span>
+        </button>
+        
+        <div class="schedule-body" id="schbody-${i}">
+          <div class="schedule-enable">
+            <input type="checkbox" class="sch-enable" id="sch-en-${i}">
+            <label for="sch-en-${i}">เปิดใช้ตั้งเวลา</label>
+          </div>
+          
+          <div style="font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px">DAYS</div>
+          <div class="days-row" id="days-${i}">
+            ${DAYS.map((d,di) => `
+              <div class="day-btn selected" data-relay="${i}" data-day="${di}" onclick="toggleDay(this,${i},${di})">${d}</div>
+            `).join('')}
+          </div>
+          
+          <div class="schedule-row">
+            <div class="schedule-label" style="color:var(--green)">ON</div>
+            <input type="time" class="time-input" id="on-${i}" value="08:00">
+          </div>
+          <div class="schedule-row">
+            <div class="schedule-label" style="color:var(--red)">OFF</div>
+            <input type="time" class="time-input" id="off-${i}" value="20:00">
+          </div>
+          
+          <button class="btn-save-schedule" onclick="saveSchedule(${i})">💾 SAVE SCHEDULE</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
 
-function startListeners() {
-  // Relay states
-  db.ref('/relays').on('value', snap => {
-    const d=snap.val(); if(!d) return;
-    for(let i=1;i<=4;i++) if(d['relay'+i]!==undefined) updateRelayUI(i-1,d['relay'+i]);
-  });
-
-  // Device status + ESP time
-  db.ref('/device').on('value', snap => {
-    const d=snap.val(); if(!d) return;
-    document.getElementById('deviceDot').className = d.status==='online'?'status-dot online':'status-dot offline';
-    document.getElementById('deviceStatus').textContent = d.status==='online'?'ออนไลน์':'ออฟไลน์';
-    if(d.ip) document.getElementById('deviceIP').textContent=d.ip;
-    // ESP time & NTP badge
-    if(d.espTime) {
-      document.getElementById('espTime').textContent = d.espTime;
-      const badge = document.getElementById('ntpBadge');
-      badge.textContent = '✅ NTP Synced';
-      badge.className = 'ntp-badge ok';
-    }
-  });
-
-  // Labels
-  db.ref('/labels').on('value', snap => {
-    const d=snap.val(); if(!d) return;
-    for(let i=1;i<=4;i++) {
-      if(d['relay'+i]) {
-        relayLabels[i-1]=d['relay'+i];
-        const el=document.getElementById('label'+(i-1));
-        if(el) el.value=d['relay'+i];
+// ============ FIREBASE LISTENER ============
+function listenFirebase() {
+  const relaysRef = db.ref('/relays');
+  
+  const stateListener = relaysRef.on('value', snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    
+    for (let i = 0; i < 4; i++) {
+      const key = `relay${i+1}`;
+      if (!data[key]) continue;
+      
+      // Update relay state
+      const state = data[key].state === true || data[key].state === 1;
+      updateRelayUI(i, state);
+      
+      // Update schedule UI
+      if (data[key].schedule) {
+        const sch = data[key].schedule;
+        scheduleData[i] = sch;
+        document.getElementById(`sch-en-${i}`).checked = sch.enabled || false;
+        if (sch.onHour !== undefined) {
+          document.getElementById(`on-${i}`).value =
+            `${String(sch.onHour).padStart(2,'0')}:${String(sch.onMin).padStart(2,'0')}`;
+        }
+        if (sch.offHour !== undefined) {
+          document.getElementById(`off-${i}`).value =
+            `${String(sch.offHour).padStart(2,'0')}:${String(sch.offMin).padStart(2,'0')}`;
+        }
+        if (sch.days) {
+          const dayBtns = document.querySelectorAll(`#days-${i} .day-btn`);
+          dayBtns.forEach((btn, di) => {
+            if (sch.days[di]) btn.classList.add('selected');
+            else btn.classList.remove('selected');
+          });
+        }
       }
     }
   });
 
-  // Schedules
-  db.ref('/schedules').on('value', snap => {
-    const d=snap.val(); if(!d) return;
-    for(let i=1;i<=4;i++) {
-      if(d['relay'+i]) {
-        schedules[i-1]=d['relay'+i];
-        refreshSlotUI(i-1);
-      }
+  // Device status
+  const deviceRef = db.ref('/device');
+  const deviceListener = deviceRef.on('value', snap => {
+    if (!snap.exists()) return;
+    const d = snap.val();
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    
+    if (d.online) {
+      dot.classList.add('online');
+      txt.textContent = 'ONLINE';
+    } else {
+      dot.classList.remove('online');
+      txt.textContent = 'OFFLINE';
     }
-    addLog('📅 โหลดตารางเวลาแล้ว (ESP8266 sync อัตโนมัติ)','warn');
+    
+    if (d.ip) document.getElementById('deviceIP').textContent = d.ip;
+    if (d.currentTime) {
+      const t = d.currentTime.split(' ')[1] || d.currentTime;
+      document.getElementById('deviceTime').textContent = t.substring(0,5);
+    }
   });
 
-  addLog('เริ่มรับข้อมูล Real-time แล้ว','info');
+  firebaseListeners.push({ off: () => relaysRef.off('value', stateListener) });
+  firebaseListeners.push({ off: () => deviceRef.off('value', deviceListener) });
 }
 
-// ════════════════ HELPERS ══════════════════════════════════
-
-function addLog(msg, type='') {
-  const box=document.getElementById('logBox');
-  const now=new Date().toLocaleTimeString('th-TH');
-  const line=document.createElement('div');
-  line.className='log-line '+type;
-  line.textContent='['+now+'] '+msg;
-  box.prepend(line);
-  if(box.children.length>60) box.lastChild.remove();
+// ============ RELAY CONTROL ============
+function updateRelayUI(index, state) {
+  relayStates[index] = state;
+  const card   = document.getElementById(`card-${index}`);
+  const toggle = document.getElementById(`toggle-${index}`);
+  const status = document.getElementById(`status-${index}`);
+  
+  card.classList.toggle('active', state);
+  toggle.checked = state;
+  status.textContent = state ? 'ONLINE · ON' : 'ONLINE · OFF';
 }
 
-function showToast(msg, type='') {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast '+type+' show';
-  setTimeout(()=>t.className='toast',2500);
+async function toggleRelay(index, state) {
+  try {
+    await db.ref(`/relays/relay${index+1}/state`).set(state);
+    showToast(`Relay ${index+1} ${state ? 'เปิด' : 'ปิด'} แล้ว`, 'success');
+  } catch(e) {
+    showToast('ไม่สามารถเชื่อมต่อได้', 'error');
+    // Revert UI
+    document.getElementById(`toggle-${index}`).checked = !state;
+  }
 }
 
-// ════════════════ INIT ═════════════════════════════════════
+// ============ SCHEDULE ============
+function toggleSchedule(index) {
+  scheduleOpenState[index] = !scheduleOpenState[index];
+  const body = document.getElementById(`schbody-${index}`);
+  const btn  = document.getElementById(`schbtn-${index}`);
+  body.classList.toggle('open', scheduleOpenState[index]);
+  btn.classList.toggle('open', scheduleOpenState[index]);
+}
 
-loadConfig();
-buildRelayList();
-startClock();
-addLog('กำลังตรวจสอบ session...','info');
+function toggleDay(el, relayIdx, dayIdx) {
+  el.classList.toggle('selected');
+}
 
-try {
-  const cfg = buildFirebaseConfig();
-  if(firebase.apps.length===0) firebase.initializeApp(cfg);
-  db=firebase.database();
-  firebase.auth().onAuthStateChanged(user=>{
-    if(user) { onLoginSuccess(user.email); addLog('Auto-login: '+user.email,'ok'); }
-    else { showConfigPanel(); addLog('กรุณา Login เพื่อเข้าใช้งาน','info'); }
+async function saveSchedule(index) {
+  const enabled = document.getElementById(`sch-en-${index}`).checked;
+  const onVal   = document.getElementById(`on-${index}`).value.split(':');
+  const offVal  = document.getElementById(`off-${index}`).value.split(':');
+  
+  const dayBtns = document.querySelectorAll(`#days-${index} .day-btn`);
+  const days = {};
+  dayBtns.forEach((btn, di) => {
+    days[di] = btn.classList.contains('selected');
   });
-} catch(e) {
-  showConfigPanel();
-  addLog('⚠️ ตรวจสอบ FB_API_KEY และ FB_DB_URL ในโค้ด','err');
+
+  const schedule = {
+    enabled,
+    onHour:  parseInt(onVal[0]),
+    onMin:   parseInt(onVal[1]),
+    offHour: parseInt(offVal[0]),
+    offMin:  parseInt(offVal[1]),
+    days
+  };
+
+  try {
+    await db.ref(`/relays/relay${index+1}/schedule`).set(schedule);
+    showToast(`บันทึกตั้งเวลา Relay ${index+1} แล้ว`, 'success');
+  } catch(e) {
+    showToast('บันทึกไม่สำเร็จ', 'error');
+  }
+}
+
+// ============ TOAST ============
+let toastTimer;
+function showToast(msg, type='success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+  toast.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
 }
 </script>
 </body>
