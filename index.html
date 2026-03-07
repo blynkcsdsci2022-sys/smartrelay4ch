@@ -586,9 +586,11 @@ input[type=checkbox].sch-enable {
         <div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;margin-top:4px">LOCAL TIME</div>
       </div>
       <div style="text-align:center">
-        <div class="device-info">
+        <div class="device-info" style="flex-wrap:wrap;gap:8px">
           <div class="info-chip">IP: <span id="deviceIP">-</span></div>
-          <div class="info-chip">ESP: <span id="deviceTime">--:--</span></div>
+          <div class="info-chip">⏱ <span id="deviceTime">--:--</span></div>
+          <div class="info-chip">📶 <span id="deviceSSID">-</span></div>
+          <div class="info-chip">RSSI: <span id="deviceRSSI">- dBm</span></div>
         </div>
       </div>
       <div class="clock-date">
@@ -621,6 +623,7 @@ const firebaseConfig = {
   messagingSenderId: "708991120063",
   appId: "1:708991120063:web:407e2d52ebcbaa640e8c0a"
 };
+
 // ============================================================
 
 firebase.initializeApp(firebaseConfig);
@@ -720,30 +723,10 @@ document.getElementById('passwordInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') login();
 });
 
-let lastDeviceData = null; // เก็บข้อมูล device ล่าสุด
-
-function checkOnlineStatus() {
-  if (!lastDeviceData) return;
-  const dot = document.getElementById('statusDot');
-  const txt = document.getElementById('statusText');
-
-  const lastSeen = new Date(lastDeviceData.currentTime.replace(' ', 'T') + '+07:00');
-  const diffSec  = (new Date() - lastSeen) / 1000;
-
-  if (diffSec < 5) {
-    dot.classList.add('online');
-    txt.textContent = 'ONLINE';
-  } else {
-    dot.classList.remove('online');
-    txt.textContent = 'OFFLINE';
-  }
-}  
 // ============ APP INIT ============
 function initApp() {
   renderRelayGrid();
   listenFirebase();
-  // ✅ เพิ่มตรงนี้ — เช็ค online status ทุก 5 วินาที
-  setInterval(checkOnlineStatus, 5000);
 }
 
 function clearListeners() {
@@ -855,14 +838,13 @@ function listenFirebase() {
   const deviceListener = deviceRef.on('value', snap => {
     if (!snap.exists()) return;
     const d = snap.val();
-    lastDeviceData = d; // ✅ เพิ่มบรรทัดนี้
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
     
     if (d.online && d.currentTime) {
       const lastSeen = new Date(d.currentTime.replace(' ', 'T') + '+07:00');
       const diffSec  = (new Date() - lastSeen) / 1000;
-      if (diffSec < 5) {
+      if (diffSec < 30) {
       dot.classList.add('online');
         txt.textContent = 'ONLINE';
       } else {
@@ -874,7 +856,13 @@ function listenFirebase() {
       txt.textContent = 'OFFLINE';
     }
     
-    if (d.ip) document.getElementById('deviceIP').textContent = d.ip;
+    if (d.ip)   document.getElementById('deviceIP').textContent = d.ip;
+    if (d.ssid) document.getElementById('deviceSSID').textContent = d.ssid;
+    if (d.rssi) {
+      const rssi = d.rssi;
+      const bars = rssi > -60 ? '▊▊▊▊' : rssi > -75 ? '▊▊▊░' : rssi > -85 ? '▊▊░░' : '▊░░░';
+      document.getElementById('deviceRSSI').textContent = bars + ' ' + rssi + ' dBm';
+    }
     if (d.currentTime) {
       const t = d.currentTime.split(' ')[1] || d.currentTime;
       document.getElementById('deviceTime').textContent = t.substring(0,5);
