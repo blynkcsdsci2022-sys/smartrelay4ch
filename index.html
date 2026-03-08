@@ -419,7 +419,7 @@ main { padding:24px; max-width:1200px; margin:0 auto; }
   border: 1px solid var(--border);
   border-radius:8px; padding:8px 12px;
   color:var(--text); font-family:'Orbitron',monospace;
-  font-size:14px; width:110px; outline:none;
+  font-size:14px; width:130px; outline:none;
   transition:border-color 0.3s;
   -webkit-appearance: none;
   appearance: none;
@@ -427,6 +427,8 @@ main { padding:24px; max-width:1200px; margin:0 auto; }
 
 /* ซ่อน AM/PM spinner */
 .time-input::-webkit-datetime-edit-ampm-field { display: none; }
+.time-input::-webkit-datetime-edit-second-field { display: none; }
+.time-input::-webkit-datetime-edit-millisecond-field { display: none; }
 .time-input::-webkit-calendar-picker-indicator {
   filter: invert(1) sepia(1) saturate(5) hue-rotate(175deg);
   cursor: pointer;
@@ -623,7 +625,6 @@ const firebaseConfig = {
   messagingSenderId: "708991120063",
   appId: "1:708991120063:web:407e2d52ebcbaa640e8c0a"
 };
-
 // ============================================================
 
 firebase.initializeApp(firebaseConfig);
@@ -764,7 +765,7 @@ function checkOnlineStatus() {
     txt.textContent = 'OFFLINE';
   }
 }
-  
+
 function clearListeners() {
   firebaseListeners.forEach(ref => ref.off());
   firebaseListeners = [];
@@ -869,7 +870,7 @@ function listenFirebase() {
     }
   });
 
-   // Device status
+  // Device status
   const deviceRef = db.ref('/device');
   const deviceListener = deviceRef.on('value', snap => {
     if (!snap.exists()) return;
