@@ -414,25 +414,24 @@ main { padding:24px; max-width:1200px; margin:0 auto; }
   min-width:40px;
 }
 
-.time-input {
+.time-select-wrap {
+  display:flex; align-items:center; gap:4px;
+}
+.time-select {
   background: rgba(0,0,0,0.4);
   border: 1px solid var(--border);
-  border-radius:8px; padding:8px 12px;
+  border-radius:8px; padding:8px 6px;
   color:var(--text); font-family:'Orbitron',monospace;
-  font-size:14px; width:150px; min-width:150px; outline:none;
+  font-size:14px; width:60px; outline:none;
+  text-align:center; cursor:pointer;
   transition:border-color 0.3s;
-  -webkit-appearance: none;
-  appearance: none;
+  -webkit-appearance:none; appearance:none;
 }
-
-/* ซ่อน AM/PM spinner */
-.time-input::-webkit-datetime-edit-ampm-field { display: none; }
-.time-input::-webkit-datetime-edit-second-field { display: none; }
-.time-input::-webkit-datetime-edit-millisecond-field { display: none; }
-.time-input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
-.time-input::-webkit-datetime-edit { padding: 0 4px; }
-/* ซ่อน : ที่เกินมาหลัง MM */
-.time-input::-webkit-datetime-edit-text:last-of-type { display: none; }
+.time-select:focus { border-color:var(--accent); }
+.time-colon {
+  color:var(--accent); font-family:'Orbitron',monospace;
+  font-size:18px; font-weight:700;
+}
 .time-input::-webkit-calendar-picker-indicator {
   filter: invert(1) sepia(1) saturate(5) hue-rotate(175deg);
   cursor: pointer;
@@ -820,11 +819,19 @@ function renderRelayGrid() {
           
           <div class="schedule-row">
             <div class="schedule-label" style="color:var(--green)">ON</div>
-            <input type="time" class="time-input" id="on-${i}" value="08:00" step="60">
+            <div class="time-select-wrap">
+              <select class="time-select" id="on-h-${i}"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option></select>
+              <span class="time-colon">:</span>
+              <select class="time-select" id="on-m-${i}"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+            </div>
           </div>
           <div class="schedule-row">
             <div class="schedule-label" style="color:var(--red)">OFF</div>
-            <input type="time" class="time-input" id="off-${i}" value="20:00" step="60">
+            <div class="time-select-wrap">
+              <select class="time-select" id="off-h-${i}"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option></select>
+              <span class="time-colon">:</span>
+              <select class="time-select" id="off-m-${i}"><option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option><option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select>
+            </div>
           </div>
           
           <button class="btn-save-schedule" onclick="saveSchedule(${i})">💾 SAVE SCHEDULE</button>
@@ -856,12 +863,12 @@ function listenFirebase() {
         scheduleData[i] = sch;
         document.getElementById(`sch-en-${i}`).checked = sch.enabled || false;
         if (sch.onHour !== undefined) {
-          document.getElementById(`on-${i}`).value =
-            `${String(sch.onHour).padStart(2,'0')}:${String(sch.onMin).padStart(2,'0')}`;
+          document.getElementById(`on-h-${i}`).value = sch.onHour;
+          document.getElementById(`on-m-${i}`).value = sch.onMin;
         }
         if (sch.offHour !== undefined) {
-          document.getElementById(`off-${i}`).value =
-            `${String(sch.offHour).padStart(2,'0')}:${String(sch.offMin).padStart(2,'0')}`;
+          document.getElementById(`off-h-${i}`).value = sch.offHour;
+          document.getElementById(`off-m-${i}`).value = sch.offMin;
         }
         if (sch.days) {
           const dayBtns = document.querySelectorAll(`#days-${i} .day-btn`);
@@ -937,8 +944,10 @@ function toggleDay(el, relayIdx, dayIdx) {
 
 async function saveSchedule(index) {
   const enabled = document.getElementById(`sch-en-${index}`).checked;
-  const onVal   = document.getElementById(`on-${index}`).value.split(':');
-  const offVal  = document.getElementById(`off-${index}`).value.split(':');
+  const onH  = parseInt(document.getElementById(`on-h-${index}`).value);
+  const onM  = parseInt(document.getElementById(`on-m-${index}`).value);
+  const offH = parseInt(document.getElementById(`off-h-${index}`).value);
+  const offM = parseInt(document.getElementById(`off-m-${index}`).value);
   
   const dayBtns = document.querySelectorAll(`#days-${index} .day-btn`);
   const days = {};
@@ -948,12 +957,17 @@ async function saveSchedule(index) {
 
   const schedule = {
     enabled,
-    onHour:  parseInt(onVal[0]),
-    onMin:   parseInt(onVal[1]),
-    offHour: parseInt(offVal[0]),
-    offMin:  parseInt(offVal[1]),
+    onHour:  onH,
+    onMin:   onM,
+    offHour: offH,
+    offMin:  offM,
     days
   };
+
+  if (onH === offH && onM >= offM) {
+    showToast('เวลาปิดต้องมากกว่าเวลาเปิด!', 'error');
+    return;
+  }
 
   try {
     await db.ref(`/relays/relay${index+1}/schedule`).set(schedule);
