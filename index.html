@@ -664,6 +664,7 @@ const firebaseConfig = {
   messagingSenderId: "708991120063",
   appId: "1:708991120063:web:407e2d52ebcbaa640e8c0a"
 };
+
 // ============================================================
 
 firebase.initializeApp(firebaseConfig);
@@ -849,7 +850,7 @@ function renderRelayGrid() {
             `).join('')}
           </div>
 
-          ${[0,1].map(s => `
+          ${[0,1,2,3,4].map(s => `
           <div class="slot-box" id="slot-box-${i}-${s}">
             <div class="slot-header">
               <span class="slot-label">SLOT ${s+1}</span>
@@ -910,7 +911,7 @@ function listenFirebase() {
         scheduleData[i] = sch;
         // slots handled below
         // schedule เป็น array 2 slots
-        [0,1].forEach(s => {
+        [0,1,2,3,4].forEach(s => {
           const slot = Array.isArray(sch) ? sch[s] : (s === 0 ? sch : null);
           if (!slot) return;
           const enEl = document.getElementById(`sch-en-${i}-${s}`);
@@ -1002,7 +1003,7 @@ async function saveSchedule(index) {
   dayBtns.forEach((btn, di) => { days[di] = btn.classList.contains('selected'); });
 
   const slots = [];
-  for (let s = 0; s < 2; s++) {
+  for (let s = 0; s < 5; s++) {
     const enabled = document.getElementById(`sch-en-${index}-${s}`).checked;
     const onH  = parseInt(document.getElementById(`on-h-${index}-${s}`).value);
     const onM  = parseInt(document.getElementById(`on-m-${index}-${s}`).value);
